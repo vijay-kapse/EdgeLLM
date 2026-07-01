@@ -1,0 +1,25 @@
+cmake_minimum_required(VERSION 3.18)
+project(edgellm_kernels LANGUAGES CXX)
+
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+if(NOT CMAKE_BUILD_TYPE)
+  set(CMAKE_BUILD_TYPE Release)
+endif()
+
+add_executable(int8_gemm int8_gemm.cpp)
+target_compile_options(int8_gemm PRIVATE -O3)
+
+# Enable the ARMv8.2 dot-product instruction (SDOT) when the compiler supports it.
+include(CheckCXXCompilerFlag)
+if(CMAKE_SYSTEM_PROCESSOR MATCHES "arm|aarch64|ARM64")
+  check_cxx_compiler_flag("-march=armv8.2-a+dotprod" HAS_DOTPROD)
+  if(HAS_DOTPROD)
+    target_compile_options(int8_gemm PRIVATE -march=armv8.2-a+dotprod)
+  endif()
+else()
+  check_cxx_compiler_flag("-mavx2" HAS_AVX2)
+  if(HAS_AVX2)
+    target_compile_options(int8_gemm PRIVATE -mavx2)
+  endif()
+endif()
