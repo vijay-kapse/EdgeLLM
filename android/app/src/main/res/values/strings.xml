@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="title">EdgeLLM — on-device</string>
+    <string name="prompt_hint">Enter token ids (from `edgellm encode`) or wire a real tokenizer</string>
+    <string name="generate">Generate</string>
+    <string name="generating">Generating…</string>
+</resources>

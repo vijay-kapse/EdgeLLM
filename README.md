@@ -4,7 +4,7 @@
 
 This is a portfolio project built around the requirements of a Qualcomm *Machine Learning Engineer (AI Research, GenAI for the Edge)* role. Every latency, throughput, memory, size, and accuracy number in this README comes from an **actual run** on real hardware. Steps that require hardware or credentials I have not yet wired up are shown as clearly-labeled `TODO(vijay): run on <device>` placeholders — never invented.
 
-> Status: **v1.0 — core phases (0–6) complete.** Qualcomm NPU on-device numbers await an AI Hub token (clearly marked placeholder, never faked). Phases 7–8 are optional stretch goals.
+> Status: **All phases (0–8) implemented.** The only remaining number is the Qualcomm NPU on-device row, which awaits an AI Hub token (clearly marked placeholder, never faked). The Android app is a scaffold to build in Android Studio; everything else runs on this machine.
 
 ## Architecture
 
@@ -47,7 +47,7 @@ flowchart LR
 | NPUs / ML accelerators | `aihub/`, `QNNRunner` (Phase 5) | ✅ code; ⏳ device run needs token |
 | Usability, SW design, communication | CLI, config, CI, this README (Phase 0/6) | ✅ done |
 | Optimization of algebraic ops for HW cores | `kernels/` SIMD INT8 GEMM (Phase 7) | ✅ done (16× NEON speedup) |
-| Android, on-device inference | `android/` ORT Mobile app (Phase 8) | ⏳ optional stretch |
+| Android, on-device inference | `android/` ORT Mobile app (Phase 8) | ✅ scaffold (build in Android Studio) |
 
 ## Benchmark results
 
@@ -215,6 +215,21 @@ cmake --build kernels/build
 | **NEON SDOT** | 512×512×1024 | **48.7** | **13.0×** |
 
 Correctness is verified (`naive == simd`) before timing. **Honest caveat:** at `-O3` the compiler *auto-vectorizes* the naive loop to ~74 GOPS — on par with the hand-written NEON — so the baseline above deliberately disables auto-vectorization (labeled as such) to isolate the SIMD win. The takeaway a reviewer should note: modern compilers vectorize simple INT8 dot products well, and beating them meaningfully needs register/cache blocking, not just intrinsics.
+
+## Android on-device app (Phase 8, stretch — scaffold)
+
+`android/` is a minimal Android Studio project (Kotlin + **ONNX Runtime Mobile**) that loads the quantized `model.onnx` and generates text on-device. `OnnxLlm.kt` implements the same **KV-cache greedy decode** as the C++ harness through the ORT Android API; `MainActivity.kt` provides a prompt box + output view showing on-device tok/s.
+
+This is a **scaffold** (not built here — it needs the Android SDK / Android Studio). To run it:
+
+```bash
+edgellm quantize
+cp artifacts/onnx/Qwen__Qwen2.5-0.5B-Instruct-int8-dynamic/model.onnx \
+   android/app/src/main/assets/model.onnx
+# open android/ in Android Studio, then Run on a device/emulator (API 26+)
+```
+
+Tokenization on-device is a documented `TODO` in `HfTokenizer.kt` (bundle `tokenizer.json` + onnxruntime-extensions, or pre-tokenize with `edgellm encode`). The model-inference path is complete.
 
 ## Development
 
