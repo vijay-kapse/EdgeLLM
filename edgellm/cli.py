@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+from dataclasses import replace
 from pathlib import Path
 
 import typer
@@ -101,15 +102,57 @@ def export(
 
 
 @app.command()
+def report(
+    results_dir: Path = typer.Option(Path("results"), "--results", help="Results directory."),
+) -> None:
+    """Regenerate the Markdown table + bar charts from benchmarks.json."""
+    from edgellm.benchmark import render_markdown
+    from edgellm.report import render_charts
+
+    json_path = results_dir / "benchmarks.json"
+    if not json_path.exists():
+        typer.echo(f"no results at {json_path}; run 'edgellm benchmark' first.", err=True)
+        raise typer.Exit(1)
+    (results_dir / "benchmark.md").write_text(render_markdown(json_path))
+    chart = render_charts(json_path, results_dir / "benchmark_chart.png")
+    typer.echo(f"wrote {results_dir / 'benchmark.md'} and {chart}")
+
+
+@app.command()
+def quantize(
+    config_path: Path = typer.Option(DEFAULT_CONFIG, "--config", "-c", help="Path to YAML config."),
+) -> None:
+    """Produce INT8 (ONNX Runtime) and INT4 (block-wise) quantized artifacts."""
+    logging.basicConfig(level=logging.INFO, format="%(levelname)s %(name)s: %(message)s")
+    from edgellm.export import ONNXExporter
+    from edgellm.quantize import Quantizer
+
+    cfg = _load_config(config_path)
+    fp32_dir = ONNXExporter(cfg.model, cfg.export).export()
+    q = Quantizer(cfg.quantize)
+    base = fp32_dir.parent / fp32_dir.name.replace("-fp32", "")
+    int8_dir = q.ort_dynamic_int8(fp32_dir, Path(f"{base}-int8-dynamic"))
+    int4_dir = q.ort_int4(fp32_dir, Path(f"{base}-int4"))
+    typer.echo(f"INT8: {int8_dir}")
+    typer.echo(f"INT4: {int4_dir}")
+    typer.echo("\nINT4 backend availability on this machine:")
+    for backend, state in q.int4_availability().items():
+        typer.echo(f"  {backend}: {state}")
+
+
+@app.command()
 def benchmark(
     config_path: Path = typer.Option(DEFAULT_CONFIG, "--config", "-c", help="Path to YAML config."),
     skip_ppl: bool = typer.Option(False, "--skip-ppl", help="Skip perplexity (faster)."),
     results_dir: Path = typer.Option(Path("results"), "--results", help="Output directory."),
+    only: str = typer.Option(
+        "pt-fp32,ort-fp32,ort-int8,ort-int4,pt-int8",
+        "--only",
+        help="Comma list of backends to benchmark.",
+    ),
 ) -> None:
-    """Benchmark the FP32 baseline (PyTorch + ONNX Runtime) and write real numbers."""
+    """Benchmark FP32/INT8/INT4 across PyTorch + ONNX Runtime and write real numbers."""
     logging.basicConfig(level=logging.INFO, format="%(levelname)s %(name)s: %(message)s")
-
-    import torch
 
     from edgellm.benchmark import (
         BenchmarkHarness,
@@ -120,77 +163,125 @@ def benchmark(
     )
     from edgellm.export import ONNXExporter
     from edgellm.models import ModelLoader
+    from edgellm.quantize import Quantizer
     from edgellm.runners import ORTRunner, PyTorchRunner
 
     cfg = _load_config(config_path)
+    selected = {s.strip() for s in only.split(",") if s.strip()}
     harness = BenchmarkHarness(cfg.benchmark)
     ppl_eval = None if skip_ppl else PerplexityEvaluator(cfg.benchmark)
-    results = []
+    json_path = results_dir / "benchmarks.json"
 
-    # --- PyTorch FP32 baseline ---
-    loaded = ModelLoader(cfg.model).load()
-    pt_ppl = None
-    if ppl_eval is not None:
-        typer.echo("[ppl] scoring PyTorch model...")
+    loaded = ModelLoader(cfg.model).load()  # FP32 on the best local device (mps/cuda/cpu)
+    fp32_dir = ONNXExporter(cfg.model, cfg.export).export()
+    quantizer = Quantizer(cfg.quantize)
+    base = fp32_dir.parent / fp32_dir.name.replace("-fp32", "")
 
-        def torch_forward(ids: torch.Tensor, attn: torch.Tensor) -> torch.Tensor:
-            with torch.inference_mode():
-                out = loaded.model(
-                    input_ids=ids.to(loaded.device), attention_mask=attn.to(loaded.device)
-                )
-            return out.logits.detach().to("cpu")
+    def bench_ort(model_dir: Path, precision: str, name: str):
+        runner = ORTRunner(str(model_dir), loaded.tokenizer, name=name)
+        ppl = _ppl_ort(runner, ppl_eval, loaded.tokenizer) if ppl_eval else None
+        size = measure_size_mb(model_dir, ("*.onnx", "*.onnx_data"))
+        return harness.run(
+            runner,
+            precision=precision,
+            device="cpu",
+            model_id=cfg.model.id,
+            generation=cfg.generation,
+            size_mb=size,
+            perplexity=ppl,
+        )
 
-        pt_ppl = ppl_eval.evaluate(torch_forward, loaded.tokenizer)
-
-    pt_size = _pytorch_size_mb(cfg.model.id, cfg.model.revision)
-    typer.echo("[bench] PyTorch FP32...")
-    results.append(
-        harness.run(
+    def bench_pt_fp32():
+        ppl = (
+            _ppl_torch(loaded.model, loaded.device, ppl_eval, loaded.tokenizer)
+            if ppl_eval
+            else None
+        )
+        return harness.run(
             PyTorchRunner(loaded),
             precision="fp32",
             device=loaded.device,
             model_id=cfg.model.id,
             generation=cfg.generation,
-            size_mb=pt_size,
-            perplexity=pt_ppl,
+            size_mb=_pytorch_size_mb(cfg.model.id, cfg.model.revision),
+            perplexity=ppl,
         )
-    )
 
-    # --- ONNX Runtime FP32 baseline ---
-    out_dir = ONNXExporter(cfg.model, cfg.export).export()
-    ort_runner = ORTRunner(str(out_dir), loaded.tokenizer, name="ort-cpu")
-    ort_ppl = None
-    if ppl_eval is not None:
-        typer.echo("[ppl] scoring ONNX Runtime model...")
-
-        def ort_forward(ids: torch.Tensor, attn: torch.Tensor) -> torch.Tensor:
-            out = ort_runner.model(input_ids=ids, attention_mask=attn)
-            return out.logits.detach().to("cpu")
-
-        ort_ppl = ppl_eval.evaluate(ort_forward, loaded.tokenizer)
-
-    ort_size = measure_size_mb(out_dir, ("*.onnx", "*.onnx_data"))
-    typer.echo("[bench] ONNX Runtime FP32 (CPU)...")
-    results.append(
-        harness.run(
-            ort_runner,
-            precision="fp32",
+    def bench_pt_int8():
+        cpu_loaded = ModelLoader(replace(cfg.model, device="cpu")).load()
+        qmodel = Quantizer.pytorch_dynamic_int8(cpu_loaded.model)
+        cpu_loaded = replace(cpu_loaded, model=qmodel, device="cpu")
+        ppl = _ppl_torch(qmodel, "cpu", ppl_eval, cpu_loaded.tokenizer) if ppl_eval else None
+        return harness.run(
+            PyTorchRunner(cpu_loaded),
+            precision="int8",
             device="cpu",
             model_id=cfg.model.id,
             generation=cfg.generation,
-            size_mb=ort_size,
-            perplexity=ort_ppl,
+            size_mb=None,
+            perplexity=ppl,
         )
-    )
 
-    json_path = results_dir / "benchmarks.json"
-    save_results(results, json_path)
+    # (key, human label, thunk). Each runs guarded so one failure can't discard the rest.
+    steps = [
+        ("pt-fp32", "pytorch fp32", bench_pt_fp32),
+        ("ort-fp32", "ort-cpu fp32", lambda: bench_ort(fp32_dir, "fp32", "ort-cpu")),
+        (
+            "ort-int8",
+            "ort-cpu int8",
+            lambda: bench_ort(
+                quantizer.ort_dynamic_int8(fp32_dir, Path(f"{base}-int8-dynamic")),
+                "int8",
+                "ort-cpu-int8",
+            ),
+        ),
+        (
+            "ort-int4",
+            "ort-cpu int4",
+            lambda: bench_ort(
+                quantizer.ort_int4(fp32_dir, Path(f"{base}-int4")), "int4", "ort-cpu-int4"
+            ),
+        ),
+        ("pt-int8", "pytorch int8 (cpu)", bench_pt_int8),
+    ]
+
+    for key, label, thunk in steps:
+        if key not in selected:
+            continue
+        typer.echo(f"[bench] {label}...")
+        try:
+            result = thunk()
+        except Exception as exc:  # noqa: BLE001 - one backend must not sink the others
+            typer.echo(f"[bench] {label} FAILED: {type(exc).__name__}: {exc}", err=True)
+            continue
+        save_results([result], json_path)  # persist incrementally
+
     md = render_markdown(json_path)
     (results_dir / "benchmark.md").write_text(md)
-
     typer.echo("\n=== results ===")
     typer.echo(md)
     typer.echo(f"wrote {json_path} and {results_dir / 'benchmark.md'}")
+
+
+def _ppl_torch(model, device: str, ppl_eval, tokenizer) -> float:
+    import torch
+
+    def forward(ids: torch.Tensor, attn: torch.Tensor) -> torch.Tensor:
+        with torch.inference_mode():
+            out = model(input_ids=ids.to(device), attention_mask=attn.to(device))
+        return out.logits.detach().to("cpu")
+
+    return ppl_eval.evaluate(forward, tokenizer)
+
+
+def _ppl_ort(runner, ppl_eval, tokenizer) -> float:
+    import torch
+
+    def forward(ids: torch.Tensor, attn: torch.Tensor) -> torch.Tensor:
+        out = runner.model(input_ids=ids, attention_mask=attn)
+        return out.logits.detach().to("cpu")
+
+    return ppl_eval.evaluate(forward, tokenizer)
 
 
 def _pytorch_size_mb(model_id: str, revision: str) -> float | None:
