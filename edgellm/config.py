@@ -30,6 +30,7 @@ class GenerationConfig:
     """Text-generation decoding parameters."""
 
     max_new_tokens: int = 128
+    min_new_tokens: int | None = None
     temperature: float = 0.7
     top_p: float = 0.9
     do_sample: bool = True
@@ -42,6 +43,7 @@ class BenchmarkConfig:
 
     warmup_runs: int = 2
     measured_runs: int = 5
+    gen_tokens: int = 64
     prompt: str = "Explain what neural network quantization is, in one short paragraph."
     eval_dataset: str = "wikitext"
     eval_config: str = "wikitext-2-raw-v1"

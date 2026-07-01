@@ -1,0 +1,30 @@
+[
+  {
+    "backend": "pytorch",
+    "precision": "fp32",
+    "device": "mps",
+    "model_id": "Qwen/Qwen2.5-0.5B-Instruct",
+    "size_mb": 942.32,
+    "latency_s_mean": 2.9949,
+    "latency_s_std": 0.0483,
+    "tokens_per_second": 21.37,
+    "peak_ram_mb": 2494.1,
+    "perplexity": 19.0,
+    "generated_tokens": 64,
+    "measured_runs": 5
+  },
+  {
+    "backend": "ort-cpu",
+    "precision": "fp32",
+    "device": "cpu",
+    "model_id": "Qwen/Qwen2.5-0.5B-Instruct",
+    "size_mb": 2404.97,
+    "latency_s_mean": 4.0807,
+    "latency_s_std": 1.0238,
+    "tokens_per_second": 16.48,
+    "peak_ram_mb": 3037.3,
+    "perplexity": 19.0,
+    "generated_tokens": 64,
+    "measured_runs": 5
+  }
+]

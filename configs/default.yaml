@@ -19,6 +19,7 @@ generation:
 benchmark:
   warmup_runs: 2
   measured_runs: 5
+  gen_tokens: 64                    # tokens generated per timed run (fixed for fair comparison)
   prompt: "Explain what neural network quantization is, in one short paragraph."
   eval_dataset: "wikitext"          # HF dataset for perplexity
   eval_config: "wikitext-2-raw-v1"

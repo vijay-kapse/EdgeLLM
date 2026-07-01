@@ -18,6 +18,23 @@ from edgellm.config import GenerationConfig
 from edgellm.models import LoadedModel
 
 
+def encode_prompt(tokenizer, prompt: str) -> dict[str, torch.Tensor]:
+    """Turn a prompt into model inputs (CPU tensors, not yet placed on a device).
+
+    Uses the chat template for instruct models; falls back to plain tokenization
+    for base models. Shared by every backend so all runners see identical inputs.
+    """
+    if tokenizer.chat_template:
+        messages = [{"role": "user", "content": prompt}]
+        return tokenizer.apply_chat_template(
+            messages,
+            add_generation_prompt=True,
+            return_tensors="pt",
+            return_dict=True,
+        )
+    return dict(tokenizer(prompt, return_tensors="pt"))
+
+
 @dataclass
 class GenerationResult:
     """The text plus the timing/throughput numbers for one generation call."""
@@ -53,22 +70,8 @@ class PyTorchRunner(InferenceRunner):
         self.loaded = loaded
 
     def _build_inputs(self, prompt: str) -> dict[str, torch.Tensor]:
-        """Apply the chat template for instruct models, else tokenize raw text.
-
-        Returns a dict of tensors (``input_ids`` + ``attention_mask``) already
-        placed on the model's device.
-        """
-        tokenizer = self.loaded.tokenizer
-        if tokenizer.chat_template:
-            messages = [{"role": "user", "content": prompt}]
-            inputs = tokenizer.apply_chat_template(
-                messages,
-                add_generation_prompt=True,
-                return_tensors="pt",
-                return_dict=True,
-            )
-        else:
-            inputs = tokenizer(prompt, return_tensors="pt")
+        """Encode ``prompt`` and place the tensors on the model's device."""
+        inputs = encode_prompt(self.loaded.tokenizer, prompt)
         return {k: v.to(self.loaded.device) for k, v in inputs.items()}
 
     @torch.inference_mode()
@@ -82,6 +85,7 @@ class PyTorchRunner(InferenceRunner):
         output_ids = self.loaded.model.generate(
             **inputs,
             max_new_tokens=generation.max_new_tokens,
+            min_new_tokens=generation.min_new_tokens,
             do_sample=generation.do_sample,
             temperature=generation.temperature,
             top_p=generation.top_p,
@@ -96,6 +100,61 @@ class PyTorchRunner(InferenceRunner):
         new_ids = output_ids[0, prompt_tokens:]
         generated_tokens = int(new_ids.shape[-1])
         text = tokenizer.decode(new_ids, skip_special_tokens=True)
+        tokens_per_second = generated_tokens / latency_s if latency_s > 0 else 0.0
+
+        return GenerationResult(
+            backend=self.name,
+            prompt=prompt,
+            text=text,
+            prompt_tokens=prompt_tokens,
+            generated_tokens=generated_tokens,
+            latency_s=latency_s,
+            tokens_per_second=tokens_per_second,
+        )
+
+
+class ORTRunner(InferenceRunner):
+    """ONNX Runtime backend (loads an exported/quantized ONNX model directory).
+
+    Used for the FP32 ONNX baseline (Phase 2) and every quantized ONNX model
+    (Phase 3). The execution provider selects the hardware: ``CPUExecutionProvider``
+    for CPU, ``CoreMLExecutionProvider`` on Apple, ``QNNExecutionProvider`` for the
+    Qualcomm NPU (Phase 5).
+    """
+
+    def __init__(
+        self,
+        model_dir: str,
+        tokenizer,
+        provider: str = "CPUExecutionProvider",
+        name: str = "ort-cpu",
+    ) -> None:
+        from optimum.onnxruntime import ORTModelForCausalLM
+
+        self.name = name
+        self.tokenizer = tokenizer
+        self.model = ORTModelForCausalLM.from_pretrained(model_dir, provider=provider)
+
+    def generate(self, prompt: str, generation: GenerationConfig) -> GenerationResult:
+        torch.manual_seed(generation.seed)
+        inputs = encode_prompt(self.tokenizer, prompt)
+        prompt_tokens = int(inputs["input_ids"].shape[-1])
+
+        start = time.perf_counter()
+        output_ids = self.model.generate(
+            **inputs,
+            max_new_tokens=generation.max_new_tokens,
+            min_new_tokens=generation.min_new_tokens,
+            do_sample=generation.do_sample,
+            temperature=generation.temperature,
+            top_p=generation.top_p,
+            pad_token_id=self.tokenizer.pad_token_id,
+        )
+        latency_s = time.perf_counter() - start
+
+        new_ids = output_ids[0, prompt_tokens:]
+        generated_tokens = int(new_ids.shape[-1])
+        text = self.tokenizer.decode(new_ids, skip_special_tokens=True)
         tokens_per_second = generated_tokens / latency_s if latency_s > 0 else 0.0
 
         return GenerationResult(
