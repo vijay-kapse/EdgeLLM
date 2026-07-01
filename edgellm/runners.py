@@ -129,11 +129,31 @@ class ORTRunner(InferenceRunner):
         provider: str = "CPUExecutionProvider",
         name: str = "ort-cpu",
     ) -> None:
+        import onnxruntime as ort
         from optimum.onnxruntime import ORTModelForCausalLM
 
+        available = ort.get_available_providers()
+        if provider not in available:
+            raise RuntimeError(
+                f"Execution provider '{provider}' is not available in this ONNX "
+                f"Runtime build (have: {available}). For the Qualcomm NPU, install "
+                "onnxruntime-qnn on a Snapdragon host, or use aihub/run_on_snapdragon.py."
+            )
         self.name = name
         self.tokenizer = tokenizer
         self.model = ORTModelForCausalLM.from_pretrained(model_dir, provider=provider)
+
+
+class QNNRunner(ORTRunner):
+    """ONNX Runtime QNN Execution Provider runner (Qualcomm NPU).
+
+    Requires an ``onnxruntime-qnn`` build on a Snapdragon host; on other platforms
+    construction raises a clear error. For laptop-side profiling of real Snapdragon
+    hardware without a device in hand, use ``aihub/run_on_snapdragon.py`` instead.
+    """
+
+    def __init__(self, model_dir: str, tokenizer, name: str = "ort-qnn") -> None:
+        super().__init__(model_dir, tokenizer, provider="QNNExecutionProvider", name=name)
 
     def generate(self, prompt: str, generation: GenerationConfig) -> GenerationResult:
         torch.manual_seed(generation.seed)

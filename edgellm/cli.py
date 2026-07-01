@@ -102,6 +102,32 @@ def export(
 
 
 @app.command()
+def snapdragon(
+    config_path: Path = typer.Option(DEFAULT_CONFIG, "--config", "-c", help="Path to YAML config."),
+    precision: str = typer.Option(
+        "int8", "--precision", help="Artifact to profile: int8|int4|fp32."
+    ),
+    device: str = typer.Option("Snapdragon 8 Elite QRD", "--device", help="AI Hub device name."),
+    seq: int = typer.Option(64, "--seq", help="Fixed sequence length for compilation."),
+) -> None:
+    """Compile + profile the model on a real Snapdragon NPU via Qualcomm AI Hub."""
+    import sys
+
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "aihub"))
+    from run_on_snapdragon import SnapdragonProfiler, check_auth
+
+    cfg = _load_config(config_path)
+    safe = cfg.model.id.replace("/", "__")
+    suffix = {"int8": "-int8-dynamic", "int4": "-int4", "fp32": "-fp32"}.get(
+        precision, "-int8-dynamic"
+    )
+    model_dir = Path(cfg.export.output_dir) / f"{safe}{suffix}"
+    if not check_auth():
+        raise typer.Exit(0)
+    SnapdragonProfiler(model_dir, device, seq, 0).run(Path("results/benchmarks.json"))
+
+
+@app.command()
 def encode(
     prompt: str = typer.Option(..., "--prompt", "-p", help="Prompt to tokenize."),
     config_path: Path = typer.Option(DEFAULT_CONFIG, "--config", "-c", help="Path to YAML config."),

@@ -4,7 +4,7 @@
 
 This is a portfolio project built around the requirements of a Qualcomm *Machine Learning Engineer (AI Research, GenAI for the Edge)* role. Every latency, throughput, memory, size, and accuracy number in this README comes from an **actual run** on real hardware. Steps that require hardware or credentials I have not yet wired up are shown as clearly-labeled `TODO(vijay): run on <device>` placeholders — never invented.
 
-> Status: **Phase 4 complete** (C++ ONNX Runtime inference harness). Phases 5–8 in progress.
+> Status: **Phase 5 code complete** (Qualcomm NPU path wired; on-device numbers await an AI Hub token — clearly marked placeholder, never faked). Phases 6–8 in progress.
 
 ---
 
@@ -146,6 +146,28 @@ On non-macOS, set `ORT_HOME` to an ONNX Runtime install (with `include/` and `li
 | int4 | 219 | 22.9 | 21.1 |
 
 INT8 decodes **~3.9× faster than FP32** in the C++ harness, and faster than the Python ORT wrapper (38 tok/s) thanks to lower per-step overhead. Output is verified coherent (e.g. *"Quantization is the process of reducing the number of bits used to represent a signal or data..."*).
+
+## Qualcomm Snapdragon NPU (Phase 5)
+
+Two paths to the NPU are wired up:
+
+1. **Qualcomm AI Hub** (`aihub/run_on_snapdragon.py`) — compiles the model to the QNN runtime and profiles it on **physical Snapdragon hardware** in Qualcomm's device farm, returning true on-device latency. This is the laptop-friendly path (no device needed).
+2. **ONNX Runtime QNN Execution Provider** (`QNNRunner` in `runners.py`) — runs on a Snapdragon host with an `onnxruntime-qnn` build. On non-Snapdragon machines it raises a clear, actionable error instead of pretending.
+
+**This needs a free AI Hub API token (only the account owner can create it):**
+
+```bash
+pip install -e ".[aihub]"                       # installs qai-hub
+# 1. Sign up: https://aihub.qualcomm.com
+# 2. Copy your token: https://aihub.qualcomm.com/account/
+qai-hub configure --api_token <YOUR_TOKEN>       # or export QAI_HUB_API_TOKEN=<token>
+
+# Then profile the INT8 model on a real device:
+edgellm snapdragon --precision int8 --device "Snapdragon 8 Elite QRD"
+# (equivalently: python aihub/run_on_snapdragon.py --model artifacts/onnx/<model>-int8-dynamic)
+```
+
+Without a token, both entry points print these exact steps and exit cleanly — **the Snapdragon NPU row in the benchmark table stays a labeled `TODO(vijay)` placeholder until the token is set and the job runs.** No device number is ever invented.
 
 ## Development
 

@@ -39,6 +39,9 @@ eval = [
 report = [
   "matplotlib>=3.8",
 ]
+aihub = [
+  "qai-hub>=0.9",           # Qualcomm AI Hub client (compile + profile on real devices)
+]
 dev = [
   "pytest>=8.0",
   "ruff>=0.5",
