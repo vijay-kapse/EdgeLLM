@@ -4,11 +4,30 @@
 
 This is a portfolio project built around the requirements of a Qualcomm *Machine Learning Engineer (AI Research, GenAI for the Edge)* role. Every latency, throughput, memory, size, and accuracy number in this README comes from an **actual run** on real hardware. Steps that require hardware or credentials I have not yet wired up are shown as clearly-labeled `TODO(vijay): run on <device>` placeholders — never invented.
 
-> Status: **Phase 5 code complete** (Qualcomm NPU path wired; on-device numbers await an AI Hub token — clearly marked placeholder, never faked). Phases 6–8 in progress.
+> Status: **v1.0 — core phases (0–6) complete.** Qualcomm NPU on-device numbers await an AI Hub token (clearly marked placeholder, never faked). Phases 7–8 are optional stretch goals.
+
+## Architecture
+
+```mermaid
+flowchart LR
+    HF["HF model<br/>Qwen2.5-0.5B"] --> ML[ModelLoader]
+    ML --> PT[PyTorchRunner<br/>CPU / MPS / CUDA]
+    ML --> EX[ONNXExporter<br/>Optimum]
+    EX --> FP32[(ONNX FP32)]
+    FP32 --> Q[Quantizer]
+    Q --> INT8[(ONNX INT8<br/>per-channel)]
+    Q --> INT4[(ONNX INT4<br/>block-wise)]
+    FP32 & INT8 & INT4 --> ORT[ORTRunner<br/>ONNX Runtime]
+    INT8 --> CPP["C++ harness<br/>edgellm_infer"]
+    INT8 --> QNN["AI Hub / QNN EP<br/>Snapdragon NPU"]
+    PT & ORT --> BENCH[BenchmarkHarness]
+    CPP & QNN --> BENCH
+    BENCH --> REP["report.py<br/>table + charts"]
+```
 
 ---
 
-## What it does (target)
+## What it does
 
 - Load a small instruct LLM (default **Qwen2.5-0.5B-Instruct**, swappable) and generate text.
 - Export to **ONNX** and benchmark an FP32 baseline: latency, tokens/sec, peak RAM, on-disk size, perplexity.
@@ -19,16 +38,16 @@ This is a portfolio project built around the requirements of a Qualcomm *Machine
 
 ## Requirement → feature mapping
 
-| Qualcomm JD requirement | Where it shows up in EdgeLLM |
-| --- | --- |
-| Python, PyTorch, deep learning, GenAI | `edgellm/models.py`, `edgellm/runners.py` (Phase 1) |
-| Model optimization / on-target deployment | ONNX export + benchmark harness (Phase 2) |
-| Neural-network model optimization (quantization) | `edgellm/quantize.py` INT8/INT4 (Phase 3) |
-| C/C++; analytical/debugging | `cpp/` ONNX Runtime C++ harness (Phase 4) |
-| NPUs / ML accelerators | `aihub/`, QNN EP runner (Phase 5) |
-| Usability, SW design, communication | CLI, config, CI, this README (Phase 0/6) |
-| Optimization of algebraic ops for HW cores | `kernels/` SIMD INT8 GEMM (Phase 7, optional) |
-| Android, on-device inference | `android/` ORT Mobile app (Phase 8, optional) |
+| Qualcomm JD requirement | Where it shows up in EdgeLLM | Status |
+| --- | --- | --- |
+| Python, PyTorch, deep learning, GenAI | `edgellm/models.py`, `edgellm/runners.py` (Phase 1) | ✅ done |
+| Model optimization / on-target deployment | ONNX export + benchmark harness (Phase 2) | ✅ done |
+| Neural-network model optimization (quantization) | `edgellm/quantize.py` INT8/INT4 (Phase 3) | ✅ done |
+| C/C++; analytical/debugging | `cpp/` ONNX Runtime C++ harness (Phase 4) | ✅ done |
+| NPUs / ML accelerators | `aihub/`, `QNNRunner` (Phase 5) | ✅ code; ⏳ device run needs token |
+| Usability, SW design, communication | CLI, config, CI, this README (Phase 0/6) | ✅ done |
+| Optimization of algebraic ops for HW cores | `kernels/` SIMD INT8 GEMM (Phase 7) | ⏳ optional stretch |
+| Android, on-device inference | `android/` ORT Mobile app (Phase 8) | ⏳ optional stretch |
 
 ## Benchmark results
 
@@ -115,6 +134,13 @@ edgellm report                 # regenerate table + bar chart from results JSON
 # Tokenizer boundary for the C++ harness
 edgellm encode -p "Hello"      # -> token ids
 edgellm decode --ids "..."     # ids -> text
+```
+
+**Reproduce everything end-to-end** (generation → export → quantize → benchmark → charts → C++ harness → optional NPU):
+
+```bash
+pip install -e ".[onnx,eval,report]"
+bash scripts/run_all.sh
 ```
 
 ## C++ inference harness (Phase 4)
