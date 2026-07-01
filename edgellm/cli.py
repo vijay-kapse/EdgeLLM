@@ -102,6 +102,36 @@ def export(
 
 
 @app.command()
+def encode(
+    prompt: str = typer.Option(..., "--prompt", "-p", help="Prompt to tokenize."),
+    config_path: Path = typer.Option(DEFAULT_CONFIG, "--config", "-c", help="Path to YAML config."),
+) -> None:
+    """Print space-separated token ids for PROMPT (feeds the C++ harness)."""
+    from transformers import AutoTokenizer
+
+    from edgellm.runners import encode_prompt
+
+    cfg = _load_config(config_path)
+    tok = AutoTokenizer.from_pretrained(cfg.model.id, revision=cfg.model.revision)
+    ids = encode_prompt(tok, prompt)["input_ids"][0].tolist()
+    typer.echo(" ".join(str(i) for i in ids))
+
+
+@app.command()
+def decode(
+    ids: str = typer.Option(..., "--ids", help="Space/comma-separated token ids to decode."),
+    config_path: Path = typer.Option(DEFAULT_CONFIG, "--config", "-c", help="Path to YAML config."),
+) -> None:
+    """Decode token ids back to text (e.g. the C++ harness's GENERATED_IDS)."""
+    from transformers import AutoTokenizer
+
+    cfg = _load_config(config_path)
+    tok = AutoTokenizer.from_pretrained(cfg.model.id, revision=cfg.model.revision)
+    id_list = [int(x) for x in ids.replace(",", " ").split()]
+    typer.echo(tok.decode(id_list, skip_special_tokens=True))
+
+
+@app.command()
 def report(
     results_dir: Path = typer.Option(Path("results"), "--results", help="Results directory."),
 ) -> None:

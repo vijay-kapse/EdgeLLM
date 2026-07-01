@@ -4,7 +4,7 @@
 
 This is a portfolio project built around the requirements of a Qualcomm *Machine Learning Engineer (AI Research, GenAI for the Edge)* role. Every latency, throughput, memory, size, and accuracy number in this README comes from an **actual run** on real hardware. Steps that require hardware or credentials I have not yet wired up are shown as clearly-labeled `TODO(vijay): run on <device>` placeholders — never invented.
 
-> Status: **Phase 3 complete** (INT8 + INT4 quantization, full comparison). Phases 4–8 in progress.
+> Status: **Phase 4 complete** (C++ ONNX Runtime inference harness). Phases 5–8 in progress.
 
 ---
 
@@ -111,7 +111,41 @@ edgellm quantize               # build INT8 + INT4 artifacts (prints backend ava
 edgellm benchmark              # all precisions; add --skip-ppl to skip perplexity
 edgellm benchmark --only ort-int8,ort-int4   # subset
 edgellm report                 # regenerate table + bar chart from results JSON
+
+# Tokenizer boundary for the C++ harness
+edgellm encode -p "Hello"      # -> token ids
+edgellm decode --ids "..."     # ids -> text
 ```
+
+## C++ inference harness (Phase 4)
+
+`cpp/` is a C++17 CLI (`edgellm_infer`) that loads a quantized/FP32 ONNX model and runs **autoregressive greedy decoding with a KV cache** through the ONNX Runtime C++ API — the actual model inference lives in C++; tokenization/detokenization stay in Python (`edgellm encode` / `edgellm decode`). It self-configures by reading `config.json` (layers, KV heads, head dim).
+
+```bash
+# Prereqs (macOS): brew install cmake onnxruntime
+cmake -S cpp -B cpp/build -DCMAKE_BUILD_TYPE=Release
+cmake --build cpp/build
+
+# End-to-end: tokenize -> C++ inference -> detokenize
+IDS=$(edgellm encode -p "Explain what quantization is in one sentence.")
+./cpp/build/edgellm_infer \
+    --model artifacts/onnx/Qwen__Qwen2.5-0.5B-Instruct-int8-dynamic \
+    --tokens "$IDS" --max-new-tokens 48
+# copy the GENERATED_IDS line into:
+edgellm decode --ids "<generated ids>"
+```
+
+On non-macOS, set `ORT_HOME` to an ONNX Runtime install (with `include/` and `lib/`) before `cmake`.
+
+**Measured on this machine** (prompt = 39 tokens, 48 new tokens, greedy, KV cache; ORT CPU EP):
+
+| Precision | Prefill (ms) | Decode (tok/s) | Overall (tok/s) |
+| --- | --- | --- | --- |
+| fp32 | 257 | 18.0 | 16.7 |
+| **int8** | **66** | **69.9** | **65.0** |
+| int4 | 219 | 22.9 | 21.1 |
+
+INT8 decodes **~3.9× faster than FP32** in the C++ harness, and faster than the Python ORT wrapper (38 tok/s) thanks to lower per-step overhead. Output is verified coherent (e.g. *"Quantization is the process of reducing the number of bits used to represent a signal or data..."*).
 
 ## Development
 
