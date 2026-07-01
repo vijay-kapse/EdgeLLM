@@ -1,0 +1,36 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+build/
+dist/
+.venv/
+venv/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+
+# Project artifacts (models, exports, quantized weights are large — never commit)
+artifacts/
+*.onnx
+*.onnx_data
+*.gguf
+*.bin
+*.safetensors
+hf_cache/
+.cache/
+
+# Results: commit curated tables/charts, ignore bulky raw dumps
+results/raw/
+
+# C++ build
+cpp/build/
+kernels/build/
+*.o
+*.obj
+
+# OS / editor
+.DS_Store
+.idea/
+.vscode/

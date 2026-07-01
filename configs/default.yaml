@@ -1,0 +1,42 @@
+# EdgeLLM default configuration.
+# Every setting here is overridable from the CLI (see `edgellm --help`).
+
+model:
+  # Small, permissive, quantizes cleanly. Swap for TinyLlama/TinyLlama-1.1B-Chat-v1.0 to compare.
+  id: "Qwen/Qwen2.5-0.5B-Instruct"
+  revision: "main"
+  dtype: "float32"        # float32 | float16 | bfloat16
+  device: "auto"          # auto | cpu | cuda | mps
+  trust_remote_code: false
+
+generation:
+  max_new_tokens: 128
+  temperature: 0.7
+  top_p: 0.9
+  do_sample: true
+  seed: 0
+
+benchmark:
+  warmup_runs: 2
+  measured_runs: 5
+  prompt: "Explain what neural network quantization is, in one short paragraph."
+  eval_dataset: "wikitext"          # HF dataset for perplexity
+  eval_config: "wikitext-2-raw-v1"
+  eval_num_samples: 32
+  eval_max_length: 512
+
+export:
+  opset: 17
+  output_dir: "artifacts/onnx"
+
+quantize:
+  int8:
+    scheme: "dynamic"     # dynamic | static
+    per_channel: true
+  int4:
+    method: "gptq"        # gptq | awq | gguf
+    group_size: 128
+
+backends:
+  - "pytorch"
+  - "ort-cpu"
