@@ -1053,12 +1053,6 @@
                   <td>5396.5</td>
                   <td>58.42</td>
                 </tr>
-                <tr class="pending">
-                  <td>ort-qnn <span class="pill todo">pending</span></td>
-                  <td>int8</td>
-                  <td>Snapdragon NPU</td>
-                  <td colspan="5">TODO(vijay) — awaiting a Qualcomm AI Hub token; never faked</td>
-                </tr>
               </tbody>
             </table>
           </div>
@@ -1226,10 +1220,9 @@
                 Every latency, throughput, memory, size and accuracy figure on this page came out of
                 an actual run on real hardware, reproducible with
                 <span class="inline-code">bash scripts/run_all.sh</span>. The one stage that needs
-                hardware not yet wired up — the Qualcomm Snapdragon NPU row — stays a clearly
-                labeled <span class="inline-code">TODO(vijay)</span> placeholder until an AI Hub
-                token is set and the job runs. Both NPU entry points print the exact setup steps and
-                exit cleanly instead of pretending.
+                hardware not yet wired up — profiling on a Qualcomm Snapdragon NPU — is left out of
+                the table rather than estimated. Both NPU entry points print the exact setup steps
+                and exit cleanly instead of pretending.
               </p>
             </div>
           </div>
