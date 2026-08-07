@@ -1,0 +1,1315 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>EdgeLLM — Quantize an LLM and run it on the edge, measured honestly</title>
+    <meta
+      name="description"
+      content="EdgeLLM exports Qwen2.5-0.5B to ONNX, quantizes it to INT8/INT4, and runs it from Python, a C++17 harness, Android, and a Qualcomm Snapdragon NPU — with every latency, size, and perplexity number measured on real hardware."
+    />
+    <meta property="og:title" content="EdgeLLM — Quantize an LLM and run it on the edge" />
+    <meta
+      property="og:description"
+      content="INT8 ONNX: 4× smaller, 2× faster, perplexity 19.0 → 20.1. A C++17 inference harness, a NEON SDOT INT8 GEMM kernel, and an Android app. Every number from an actual run."
+    />
+    <meta property="og:type" content="website" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <link
+      rel="icon"
+      href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚡</text></svg>"
+    />
+    <style>
+      :root {
+        color-scheme: dark;
+        --bg: #0a0c10;
+        --bg-soft: #0e1116;
+        --card: #13171e;
+        --card-2: #171c24;
+        --border: #222a35;
+        --border-soft: #1a212a;
+        --text: #e9eef5;
+        --muted: #94a1b2;
+        --faint: #6b7888;
+        --accent: #3987e5;
+        --accent-2: #6aa9f0;
+        --warm: #d95926;
+        --aqua: #199e70;
+        --code-bg: #0b0e13;
+        --shadow: 0 24px 60px -22px rgba(0, 0, 0, 0.75);
+      }
+      * {
+        box-sizing: border-box;
+      }
+      html {
+        scroll-behavior: smooth;
+      }
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--text);
+        line-height: 1.6;
+        -webkit-font-smoothing: antialiased;
+        font-family:
+          -apple-system, BlinkMacSystemFont, 'Segoe UI', Inter, Roboto, Helvetica, Arial, sans-serif;
+      }
+      a {
+        color: inherit;
+        text-decoration: none;
+      }
+      .wrap {
+        max-width: 1080px;
+        margin: 0 auto;
+        padding: 0 24px;
+      }
+      .mono {
+        font-family: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, monospace;
+      }
+
+      /* ---------- nav ---------- */
+      header.nav {
+        position: sticky;
+        top: 0;
+        z-index: 50;
+        backdrop-filter: blur(12px);
+        background: rgba(10, 12, 16, 0.76);
+        border-bottom: 1px solid var(--border-soft);
+      }
+      .nav-inner {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        height: 64px;
+        gap: 16px;
+      }
+      .brand {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        font-weight: 700;
+        letter-spacing: -0.02em;
+        font-size: 1.05rem;
+      }
+      .brand .chip {
+        width: 26px;
+        height: 26px;
+        border-radius: 7px;
+        background: linear-gradient(135deg, var(--accent), #1e5fb0);
+        display: grid;
+        place-items: center;
+        font-size: 0.72rem;
+        font-weight: 800;
+        color: #fff;
+      }
+      .nav-links {
+        display: flex;
+        align-items: center;
+        gap: 22px;
+        font-size: 0.92rem;
+        color: var(--muted);
+      }
+      .nav-links a:hover {
+        color: var(--text);
+      }
+      .btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 10px 18px;
+        border-radius: 10px;
+        font-weight: 600;
+        font-size: 0.94rem;
+        border: 1px solid var(--border);
+        transition:
+          transform 0.15s ease,
+          border-color 0.15s ease,
+          background 0.15s ease;
+      }
+      .btn:hover {
+        transform: translateY(-1px);
+      }
+      .btn-primary {
+        background: var(--accent);
+        border-color: var(--accent);
+        color: #fff;
+      }
+      .btn-primary:hover {
+        background: var(--accent-2);
+        border-color: var(--accent-2);
+      }
+      .btn-ghost {
+        background: var(--card);
+        color: var(--text);
+      }
+      .btn-ghost:hover {
+        border-color: #3a4657;
+      }
+      @media (max-width: 720px) {
+        .nav-links .hide-sm {
+          display: none;
+        }
+      }
+
+      /* ---------- hero ---------- */
+      .hero {
+        padding: 84px 0 56px;
+        border-bottom: 1px solid var(--border-soft);
+        background:
+          radial-gradient(900px 400px at 15% -10%, rgba(57, 135, 229, 0.16), transparent 60%),
+          radial-gradient(700px 360px at 90% 0%, rgba(25, 158, 112, 0.09), transparent 60%);
+      }
+      .eyebrow {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 0.78rem;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: var(--muted);
+        border: 1px solid var(--border);
+        background: var(--card);
+        padding: 6px 12px;
+        border-radius: 999px;
+      }
+      .eyebrow .dot {
+        width: 7px;
+        height: 7px;
+        border-radius: 50%;
+        background: var(--aqua);
+      }
+      h1 {
+        font-size: clamp(2.1rem, 5.2vw, 3.5rem);
+        line-height: 1.08;
+        letter-spacing: -0.03em;
+        margin: 22px 0 0;
+        max-width: 16ch;
+      }
+      h1 .grad {
+        background: linear-gradient(100deg, var(--accent-2), #9fd0ff 55%, var(--aqua));
+        -webkit-background-clip: text;
+        background-clip: text;
+        color: transparent;
+      }
+      .lede {
+        margin: 20px 0 0;
+        font-size: clamp(1rem, 2.1vw, 1.16rem);
+        color: var(--muted);
+        max-width: 62ch;
+      }
+      .hero-cta {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 12px;
+        margin-top: 30px;
+      }
+      .hero-grid {
+        display: grid;
+        grid-template-columns: 1.15fr 0.85fr;
+        gap: 40px;
+        align-items: center;
+      }
+      @media (max-width: 900px) {
+        .hero-grid {
+          grid-template-columns: 1fr;
+          gap: 32px;
+        }
+        h1 {
+          max-width: none;
+        }
+      }
+
+      /* ---------- terminal ---------- */
+      .term {
+        border: 1px solid var(--border);
+        border-radius: 14px;
+        background: var(--code-bg);
+        box-shadow: var(--shadow);
+        overflow: hidden;
+      }
+      .term-bar {
+        display: flex;
+        align-items: center;
+        gap: 7px;
+        padding: 11px 14px;
+        border-bottom: 1px solid var(--border-soft);
+        background: var(--card);
+      }
+      .term-bar i {
+        width: 11px;
+        height: 11px;
+        border-radius: 50%;
+        background: #2b3441;
+        display: block;
+      }
+      .term-bar span {
+        margin-left: 8px;
+        font-size: 0.76rem;
+        color: var(--faint);
+      }
+      .term pre {
+        margin: 0;
+        padding: 18px 16px;
+        font-size: 0.83rem;
+        line-height: 1.75;
+        overflow-x: auto;
+      }
+      .term .c-prompt {
+        color: var(--aqua);
+      }
+      .term .c-cmt {
+        color: var(--faint);
+      }
+      .term .c-out {
+        color: var(--muted);
+      }
+      .term .c-hi {
+        color: var(--accent-2);
+      }
+
+      /* ---------- sections ---------- */
+      section {
+        padding: 72px 0;
+        border-bottom: 1px solid var(--border-soft);
+      }
+      .sec-head {
+        max-width: 68ch;
+        margin-bottom: 38px;
+      }
+      .sec-tag {
+        font-size: 0.78rem;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+        color: var(--accent-2);
+        font-weight: 700;
+      }
+      h2 {
+        font-size: clamp(1.55rem, 3.4vw, 2.1rem);
+        letter-spacing: -0.025em;
+        margin: 10px 0 0;
+      }
+      .sec-head p {
+        color: var(--muted);
+        margin: 12px 0 0;
+      }
+      h3 {
+        margin: 0;
+        font-size: 1.02rem;
+        letter-spacing: -0.01em;
+      }
+
+      /* ---------- stat tiles ---------- */
+      .stats {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 14px;
+      }
+      @media (max-width: 900px) {
+        .stats {
+          grid-template-columns: repeat(2, 1fr);
+        }
+      }
+      .stat {
+        border: 1px solid var(--border);
+        background: linear-gradient(180deg, var(--card-2), var(--card));
+        border-radius: 14px;
+        padding: 20px;
+      }
+      .stat .num {
+        font-size: clamp(1.7rem, 3.4vw, 2.15rem);
+        font-weight: 750;
+        letter-spacing: -0.03em;
+        line-height: 1.1;
+      }
+      .stat .lbl {
+        margin-top: 6px;
+        font-weight: 600;
+        font-size: 0.93rem;
+      }
+      .stat .sub {
+        margin-top: 4px;
+        color: var(--faint);
+        font-size: 0.82rem;
+        line-height: 1.5;
+      }
+
+      /* ---------- charts ---------- */
+      .charts {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 16px;
+      }
+      @media (max-width: 980px) {
+        .charts {
+          grid-template-columns: 1fr;
+        }
+      }
+      .chart-card {
+        border: 1px solid var(--border);
+        background: var(--card);
+        border-radius: 14px;
+        padding: 20px 20px 16px;
+      }
+      .chart-card .ct {
+        font-weight: 650;
+        font-size: 0.98rem;
+      }
+      .chart-card .cs {
+        color: var(--faint);
+        font-size: 0.8rem;
+        margin-top: 2px;
+      }
+      .bars {
+        margin-top: 18px;
+        display: flex;
+        flex-direction: column;
+        gap: 14px;
+      }
+      .row {
+        display: grid;
+        grid-template-columns: 52px 1fr 64px;
+        align-items: center;
+        gap: 10px;
+      }
+      .row .rl {
+        font-size: 0.79rem;
+        color: var(--muted);
+        text-align: right;
+      }
+      .track {
+        position: relative;
+        height: 22px;
+        display: flex;
+        align-items: center;
+      }
+      .bar {
+        height: 14px;
+        border-radius: 0 4px 4px 0;
+        background: #2c3a4c;
+        min-width: 3px;
+        flex: 0 0 auto;
+        transition: filter 0.15s ease;
+      }
+      .bar.win {
+        background: var(--accent);
+      }
+      .bar.warn {
+        background: var(--warm);
+      }
+      .row:hover .bar {
+        filter: brightness(1.18);
+      }
+      .val {
+        font-size: 0.79rem;
+        color: var(--text);
+        font-variant-numeric: tabular-nums;
+        white-space: nowrap;
+      }
+      .val em {
+        font-style: normal;
+        color: var(--faint);
+      }
+      .row {
+        position: relative;
+      }
+      .tip {
+        position: absolute;
+        left: 62px;
+        bottom: 26px;
+        z-index: 10;
+        background: #060a0f;
+        border: 1px solid var(--border);
+        border-radius: 9px;
+        padding: 8px 11px;
+        font-size: 0.78rem;
+        color: var(--text);
+        white-space: nowrap;
+        opacity: 0;
+        pointer-events: none;
+        transform: translateY(4px);
+        transition:
+          opacity 0.14s ease,
+          transform 0.14s ease;
+        box-shadow: 0 12px 28px -12px rgba(0, 0, 0, 0.9);
+      }
+      .tip b {
+        color: var(--accent-2);
+      }
+      .row:hover .tip,
+      .row:focus-within .tip {
+        opacity: 1;
+        transform: translateY(0);
+      }
+      .chart-note {
+        margin-top: 16px;
+        padding-top: 13px;
+        border-top: 1px solid var(--border-soft);
+        color: var(--faint);
+        font-size: 0.79rem;
+        line-height: 1.55;
+      }
+
+      /* ---------- table ---------- */
+      .tbl-wrap {
+        overflow-x: auto;
+        border: 1px solid var(--border);
+        border-radius: 14px;
+        background: var(--card);
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 0.87rem;
+        min-width: 760px;
+      }
+      thead th {
+        text-align: left;
+        font-size: 0.74rem;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        color: var(--faint);
+        font-weight: 650;
+        padding: 14px 16px;
+        border-bottom: 1px solid var(--border);
+        white-space: nowrap;
+      }
+      tbody td {
+        padding: 13px 16px;
+        border-bottom: 1px solid var(--border-soft);
+        color: var(--muted);
+        font-variant-numeric: tabular-nums;
+        white-space: nowrap;
+      }
+      tbody tr:last-child td {
+        border-bottom: 0;
+      }
+      tbody tr:hover td {
+        background: rgba(57, 135, 229, 0.05);
+      }
+      tbody tr.best td {
+        color: var(--text);
+        background: rgba(57, 135, 229, 0.08);
+        font-weight: 600;
+      }
+      tbody tr.pending td {
+        color: var(--faint);
+        font-style: italic;
+      }
+      .pill {
+        display: inline-block;
+        padding: 2px 8px;
+        border-radius: 999px;
+        font-size: 0.72rem;
+        font-weight: 650;
+        font-style: normal;
+        border: 1px solid var(--border);
+        color: var(--muted);
+      }
+      .pill.best {
+        background: rgba(57, 135, 229, 0.16);
+        border-color: rgba(57, 135, 229, 0.4);
+        color: #9fc9f8;
+      }
+      .pill.todo {
+        background: rgba(217, 89, 38, 0.13);
+        border-color: rgba(217, 89, 38, 0.38);
+        color: #f0a382;
+      }
+
+      /* ---------- findings / cards ---------- */
+      .cards {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 16px;
+      }
+      @media (max-width: 860px) {
+        .cards {
+          grid-template-columns: 1fr;
+        }
+      }
+      .card {
+        border: 1px solid var(--border);
+        background: var(--card);
+        border-radius: 14px;
+        padding: 22px;
+      }
+      .card .k {
+        font-size: 0.75rem;
+        letter-spacing: 0.09em;
+        text-transform: uppercase;
+        color: var(--accent-2);
+        font-weight: 700;
+      }
+      .card h3 {
+        margin: 9px 0 8px;
+        font-size: 1.06rem;
+      }
+      .card p {
+        margin: 0;
+        color: var(--muted);
+        font-size: 0.92rem;
+      }
+      .card p + p {
+        margin-top: 9px;
+      }
+      .card code,
+      .inline-code {
+        font-family: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, monospace;
+        font-size: 0.86em;
+        background: var(--code-bg);
+        border: 1px solid var(--border-soft);
+        padding: 1px 5px;
+        border-radius: 5px;
+        color: #cddcf0;
+      }
+
+      /* ---------- pipeline ---------- */
+      .pipe {
+        display: grid;
+        grid-template-columns: repeat(5, 1fr);
+        gap: 12px;
+        align-items: stretch;
+      }
+      @media (max-width: 980px) {
+        .pipe {
+          grid-template-columns: repeat(2, 1fr);
+        }
+      }
+      @media (max-width: 520px) {
+        .pipe {
+          grid-template-columns: 1fr;
+        }
+      }
+      .step {
+        border: 1px solid var(--border);
+        background: linear-gradient(180deg, var(--card-2), var(--card));
+        border-radius: 13px;
+        padding: 18px;
+        position: relative;
+      }
+      .step .n {
+        font-size: 0.72rem;
+        font-weight: 700;
+        color: var(--faint);
+        letter-spacing: 0.1em;
+      }
+      .step h3 {
+        margin: 8px 0 6px;
+        font-size: 0.99rem;
+      }
+      .step p {
+        margin: 0;
+        color: var(--muted);
+        font-size: 0.85rem;
+      }
+      .step .f {
+        display: inline-block;
+        margin-top: 10px;
+        font-size: 0.76rem;
+        color: var(--accent-2);
+        font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      }
+
+      /* ---------- targets ---------- */
+      .targets {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 14px;
+      }
+      @media (max-width: 900px) {
+        .targets {
+          grid-template-columns: repeat(2, 1fr);
+        }
+      }
+      @media (max-width: 520px) {
+        .targets {
+          grid-template-columns: 1fr;
+        }
+      }
+      .target {
+        border: 1px solid var(--border);
+        border-radius: 13px;
+        background: var(--card);
+        padding: 20px;
+      }
+      .target .ic {
+        font-size: 1.3rem;
+      }
+      .target h3 {
+        margin: 10px 0 6px;
+        font-size: 0.99rem;
+      }
+      .target p {
+        margin: 0;
+        color: var(--muted);
+        font-size: 0.85rem;
+      }
+      .badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        margin-top: 12px;
+        font-size: 0.75rem;
+        font-weight: 650;
+        padding: 3px 9px;
+        border-radius: 999px;
+        border: 1px solid var(--border);
+        color: var(--muted);
+      }
+      .badge.ok {
+        color: #7fd8b4;
+        border-color: rgba(25, 158, 112, 0.4);
+        background: rgba(25, 158, 112, 0.12);
+      }
+      .badge.wait {
+        color: #f0a382;
+        border-color: rgba(217, 89, 38, 0.38);
+        background: rgba(217, 89, 38, 0.12);
+      }
+
+      /* ---------- honesty banner ---------- */
+      .banner {
+        border: 1px solid rgba(57, 135, 229, 0.35);
+        background: linear-gradient(120deg, rgba(57, 135, 229, 0.12), rgba(25, 158, 112, 0.07));
+        border-radius: 16px;
+        padding: 26px 28px;
+        display: flex;
+        gap: 18px;
+        align-items: flex-start;
+      }
+      .banner .ic {
+        font-size: 1.5rem;
+        line-height: 1.2;
+      }
+      .banner h3 {
+        font-size: 1.08rem;
+        margin-bottom: 7px;
+      }
+      .banner p {
+        margin: 0;
+        color: var(--muted);
+        font-size: 0.93rem;
+        max-width: 78ch;
+      }
+
+      /* ---------- quickstart ---------- */
+      .qs {
+        display: grid;
+        grid-template-columns: 0.9fr 1.1fr;
+        gap: 28px;
+        align-items: start;
+      }
+      @media (max-width: 900px) {
+        .qs {
+          grid-template-columns: 1fr;
+        }
+      }
+      ul.plain {
+        margin: 0;
+        padding-left: 18px;
+        color: var(--muted);
+        font-size: 0.93rem;
+      }
+      ul.plain li {
+        margin-bottom: 8px;
+      }
+
+      /* ---------- footer ---------- */
+      footer {
+        padding: 46px 0 60px;
+      }
+      .foot {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 16px;
+        justify-content: space-between;
+        align-items: center;
+        color: var(--faint);
+        font-size: 0.87rem;
+      }
+      .foot a {
+        color: var(--muted);
+      }
+      .foot a:hover {
+        color: var(--text);
+      }
+      .foot-links {
+        display: flex;
+        gap: 20px;
+        flex-wrap: wrap;
+      }
+      .cta-final {
+        text-align: center;
+        padding: 78px 0;
+        border-bottom: 1px solid var(--border-soft);
+      }
+      .cta-final h2 {
+        margin-bottom: 12px;
+      }
+      .cta-final p {
+        color: var(--muted);
+        max-width: 56ch;
+        margin: 0 auto 26px;
+      }
+      .cta-row {
+        display: flex;
+        gap: 12px;
+        justify-content: center;
+        flex-wrap: wrap;
+      }
+    </style>
+  </head>
+  <body>
+    <header class="nav">
+      <div class="wrap nav-inner">
+        <a class="brand" href="#top">
+          <span class="chip">EL</span>
+          EdgeLLM
+        </a>
+        <nav class="nav-links">
+          <a class="hide-sm" href="#benchmarks">Benchmarks</a>
+          <a class="hide-sm" href="#pipeline">Pipeline</a>
+          <a class="hide-sm" href="#findings">Findings</a>
+          <a class="hide-sm" href="#quickstart">Quickstart</a>
+          <a class="btn btn-ghost" href="https://github.com/vijay-kapse/EdgeLLM">GitHub ↗</a>
+        </nav>
+      </div>
+    </header>
+
+    <main id="top">
+      <!-- HERO -->
+      <div class="hero">
+        <div class="wrap hero-grid">
+          <div>
+            <span class="eyebrow"><span class="dot"></span> Phases 0–8 implemented · MIT</span>
+            <h1>Shrink an LLM <span class="grad">4×</span>, run it <span class="grad">2×</span> faster, and prove it.</h1>
+            <p class="lede">
+              EdgeLLM takes Qwen2.5-0.5B-Instruct from Hugging Face to the edge: ONNX export, INT8
+              and INT4 quantization, a C++17 inference harness with a KV cache, a hand-written NEON
+              SDOT INT8 GEMM kernel, an Android app, and a Qualcomm Snapdragon NPU path — with a
+              benchmark suite where every latency, size, and perplexity number comes from an actual
+              run on real hardware.
+            </p>
+            <div class="hero-cta">
+              <a class="btn btn-primary" href="https://github.com/vijay-kapse/EdgeLLM">View the code on GitHub</a>
+              <a class="btn btn-ghost" href="#benchmarks">See the measurements</a>
+            </div>
+          </div>
+
+          <div class="term mono">
+            <div class="term-bar">
+              <i></i><i></i><i></i><span>edgellm — reproduce everything</span>
+            </div>
+            <pre><span class="c-prompt">$</span> pip install -e <span class="c-hi">".[onnx,eval,report]"</span>
+<span class="c-prompt">$</span> bash scripts/run_all.sh
+
+<span class="c-cmt"># export → quantize → benchmark → chart</span>
+<span class="c-out">✓ ONNX FP32 export      2405 MB</span>
+<span class="c-out">✓ INT8 per-channel       <span class="c-hi">605 MB</span>  ppl 20.10</span>
+<span class="c-out">✓ INT4 block-wise        771 MB  ppl 24.58</span>
+<span class="c-out">✓ ORT CPU int8      <span class="c-hi">38.27 tok/s</span>  (1.67 s)</span>
+<span class="c-out">✓ C++ harness int8  <span class="c-hi">69.90 tok/s</span>  (66 ms prefill)</span>
+<span class="c-out">→ results/benchmark_chart.png</span></pre>
+          </div>
+        </div>
+      </div>
+
+      <!-- STATS -->
+      <section>
+        <div class="wrap">
+          <div class="sec-head">
+            <span class="sec-tag">Measured, not claimed</span>
+            <h2>What quantization actually bought</h2>
+            <p>
+              Qwen2.5-0.5B-Instruct on Apple Silicon (arm64, macOS), 64 new tokens, greedy, 2 warmup
+              / 5 measured runs. Perplexity on a WikiText-2 slice with 512-token windows.
+            </p>
+          </div>
+          <div class="stats">
+            <div class="stat">
+              <div class="num">4×</div>
+              <div class="lbl">Smaller on disk</div>
+              <div class="sub">605 MB INT8 vs 2405 MB FP32 ONNX</div>
+            </div>
+            <div class="stat">
+              <div class="num">1.94×</div>
+              <div class="lbl">Faster in Python</div>
+              <div class="sub">38.3 vs 19.7 tok/s, ONNX Runtime CPU</div>
+            </div>
+            <div class="stat">
+              <div class="num">3.9×</div>
+              <div class="lbl">Faster decode in C++</div>
+              <div class="sub">69.9 vs 18.0 tok/s in the C++17 harness</div>
+            </div>
+            <div class="stat">
+              <div class="num">+1.1</div>
+              <div class="lbl">Perplexity cost</div>
+              <div class="sub">19.00 → 20.10 — accuracy essentially held</div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- BENCHMARKS -->
+      <section id="benchmarks">
+        <div class="wrap">
+          <div class="sec-head">
+            <span class="sec-tag">Benchmarks</span>
+            <h2>Every precision, head to head</h2>
+            <p>
+              One axis per chart, real numbers only. Hover any bar for the full measurement. INT8 is
+              highlighted because it wins; the PyTorch dynamic INT8 row is kept in orange precisely
+              because it fails — see the findings below.
+            </p>
+          </div>
+
+          <div class="charts">
+            <!-- Chart 1: size -->
+            <div class="chart-card">
+              <div class="ct">Model size on disk</div>
+              <div class="cs">ONNX artifacts · MB · lower is better</div>
+              <div class="bars">
+                <div class="row" tabindex="0">
+                  <div class="rl">FP32</div>
+                  <div class="track">
+                    <div class="bar" style="width: 100%"></div>
+                  </div>
+                  <div class="val">2405</div>
+                  <div class="tip">ONNX FP32 export · <b>2404.97 MB</b> · perplexity 19.00</div>
+                </div>
+                <div class="row" tabindex="0">
+                  <div class="rl">INT4</div>
+                  <div class="track">
+                    <div class="bar" style="width: 32.1%"></div>
+                  </div>
+                  <div class="val">771</div>
+                  <div class="tip">ONNX INT4 block-wise · <b>770.93 MB</b> · perplexity 24.58</div>
+                </div>
+                <div class="row" tabindex="0">
+                  <div class="rl">INT8</div>
+                  <div class="track">
+                    <div class="bar win" style="width: 25.2%"></div>
+                  </div>
+                  <div class="val">605</div>
+                  <div class="tip">ONNX INT8 per-channel · <b>604.98 MB</b> · perplexity 20.10</div>
+                </div>
+              </div>
+              <p class="chart-note">
+                INT4 is <em>bigger</em> than INT8 here — weight-only quantization compresses MatMul
+                but not the ~544 MB FP32 token-embedding Gather of a 152k-token vocab.
+              </p>
+            </div>
+
+            <!-- Chart 2: python throughput -->
+            <div class="chart-card">
+              <div class="ct">Throughput — Python</div>
+              <div class="cs">ONNX Runtime CPU · tokens / second · higher is better</div>
+              <div class="bars">
+                <div class="row" tabindex="0">
+                  <div class="rl">FP32</div>
+                  <div class="track">
+                    <div class="bar" style="width: 51.5%"></div>
+                  </div>
+                  <div class="val">19.7</div>
+                  <div class="tip">ort-cpu fp32 · <b>19.71 tok/s</b> · 3.25 ± 0.09 s · 2911 MB RAM</div>
+                </div>
+                <div class="row" tabindex="0">
+                  <div class="rl">INT4</div>
+                  <div class="track">
+                    <div class="bar" style="width: 52.2%"></div>
+                  </div>
+                  <div class="val">20.0</div>
+                  <div class="tip">ort-cpu int4 · <b>19.97 tok/s</b> · 3.21 ± 0.07 s · 3194 MB RAM</div>
+                </div>
+                <div class="row" tabindex="0">
+                  <div class="rl">INT8</div>
+                  <div class="track">
+                    <div class="bar win" style="width: 100%"></div>
+                  </div>
+                  <div class="val">38.3</div>
+                  <div class="tip">ort-cpu int8 · <b>38.27 tok/s</b> · 1.67 ± 0.04 s · 2862 MB RAM</div>
+                </div>
+                <div class="row" tabindex="0">
+                  <div class="rl">PT INT8</div>
+                  <div class="track">
+                    <div class="bar warn" style="width: 41.6%"></div>
+                  </div>
+                  <div class="val">15.9</div>
+                  <div class="tip">PyTorch dynamic per-tensor INT8 · <b>15.92 tok/s</b> · perplexity 58.42</div>
+                </div>
+              </div>
+              <p class="chart-note">
+                Same bit width, different scheme: PyTorch's per-tensor dynamic INT8 is both slower
+                and accuracy-destroying on ARM.
+              </p>
+            </div>
+
+            <!-- Chart 3: c++ decode -->
+            <div class="chart-card">
+              <div class="ct">Decode speed — C++17 harness</div>
+              <div class="cs">tokens / second, KV cache · higher is better</div>
+              <div class="bars">
+                <div class="row" tabindex="0">
+                  <div class="rl">FP32</div>
+                  <div class="track">
+                    <div class="bar" style="width: 25.8%"></div>
+                  </div>
+                  <div class="val">18.0</div>
+                  <div class="tip">edgellm_infer fp32 · <b>18.0 tok/s</b> decode · 257 ms prefill</div>
+                </div>
+                <div class="row" tabindex="0">
+                  <div class="rl">INT4</div>
+                  <div class="track">
+                    <div class="bar" style="width: 32.8%"></div>
+                  </div>
+                  <div class="val">22.9</div>
+                  <div class="tip">edgellm_infer int4 · <b>22.9 tok/s</b> decode · 219 ms prefill</div>
+                </div>
+                <div class="row" tabindex="0">
+                  <div class="rl">INT8</div>
+                  <div class="track">
+                    <div class="bar win" style="width: 100%"></div>
+                  </div>
+                  <div class="val">69.9</div>
+                  <div class="tip">edgellm_infer int8 · <b>69.9 tok/s</b> decode · 66 ms prefill</div>
+                </div>
+              </div>
+              <p class="chart-note">
+                The C++ harness beats the Python ORT wrapper (69.9 vs 38.3 tok/s) on the same INT8
+                model — lower per-step overhead, identical weights.
+              </p>
+            </div>
+          </div>
+
+          <!-- full table -->
+          <div class="sec-head" style="margin-top: 46px; margin-bottom: 18px">
+            <h2 style="font-size: 1.25rem">Full benchmark table</h2>
+            <p>
+              Model: Qwen/Qwen2.5-0.5B-Instruct · 64 new tokens, greedy · warmup 2 / measured 5 ·
+              perplexity on WikiText-2.
+            </p>
+          </div>
+          <div class="tbl-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Backend</th>
+                  <th>Precision</th>
+                  <th>Device</th>
+                  <th>Size (MB)</th>
+                  <th>Latency (s)</th>
+                  <th>Throughput (tok/s)</th>
+                  <th>Peak RAM (MB)</th>
+                  <th>Perplexity</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>pytorch</td>
+                  <td>fp32</td>
+                  <td>mps</td>
+                  <td>942.32</td>
+                  <td>2.96 ± 0.02</td>
+                  <td>21.60</td>
+                  <td>2495.7</td>
+                  <td>19.00</td>
+                </tr>
+                <tr>
+                  <td>ort-cpu</td>
+                  <td>fp32</td>
+                  <td>cpu</td>
+                  <td>2404.97</td>
+                  <td>3.25 ± 0.09</td>
+                  <td>19.71</td>
+                  <td>2910.8</td>
+                  <td>19.00</td>
+                </tr>
+                <tr class="best">
+                  <td>ort-cpu <span class="pill best">best</span></td>
+                  <td>int8</td>
+                  <td>cpu</td>
+                  <td>604.98</td>
+                  <td>1.67 ± 0.04</td>
+                  <td>38.27</td>
+                  <td>2861.8</td>
+                  <td>20.10</td>
+                </tr>
+                <tr>
+                  <td>ort-cpu</td>
+                  <td>int4</td>
+                  <td>cpu</td>
+                  <td>770.93</td>
+                  <td>3.21 ± 0.07</td>
+                  <td>19.97</td>
+                  <td>3194.2</td>
+                  <td>24.58</td>
+                </tr>
+                <tr>
+                  <td>pytorch</td>
+                  <td>int8</td>
+                  <td>cpu</td>
+                  <td>n/a¹</td>
+                  <td>4.02 ± 0.08</td>
+                  <td>15.92</td>
+                  <td>5396.5</td>
+                  <td>58.42</td>
+                </tr>
+                <tr class="pending">
+                  <td>ort-qnn <span class="pill todo">pending</span></td>
+                  <td>int8</td>
+                  <td>Snapdragon NPU</td>
+                  <td colspan="5">TODO(vijay) — awaiting a Qualcomm AI Hub token; never faked</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <p class="chart-note" style="border: 0; padding-left: 2px">
+            ¹ PyTorch dynamic INT8 is an in-memory transform with no standalone on-disk artifact.
+            The PyTorch FP32 row measures the hub's bf16 safetensors (942 MB); the ONNX FP32 export
+            is true fp32 (2405 MB) — the INT8/INT4 rows are the meaningful size comparison.
+            Correctness anchor: PyTorch and ORT FP32 give identical perplexity (19.00), confirming
+            the export is numerically faithful before any quantization.
+          </p>
+        </div>
+      </section>
+
+      <!-- PIPELINE -->
+      <section id="pipeline">
+        <div class="wrap">
+          <div class="sec-head">
+            <span class="sec-tag">Pipeline</span>
+            <h2>From Hugging Face checkpoint to on-device tokens</h2>
+            <p>One CLI drives every stage, and each stage writes artifacts the next one measures.</p>
+          </div>
+          <div class="pipe">
+            <div class="step">
+              <div class="n">01</div>
+              <h3>Load</h3>
+              <p>Resolve model + device (CPU / MPS / CUDA) and generate text with a swappable loader.</p>
+              <span class="f">edgellm generate</span>
+            </div>
+            <div class="step">
+              <div class="n">02</div>
+              <h3>Export</h3>
+              <p>Optimum-based ONNX FP32 export, verified numerically faithful against PyTorch.</p>
+              <span class="f">edgellm export</span>
+            </div>
+            <div class="step">
+              <div class="n">03</div>
+              <h3>Quantize</h3>
+              <p>INT8 per-channel dynamic and INT4 block-wise weight-only, with honest backend availability.</p>
+              <span class="f">edgellm quantize</span>
+            </div>
+            <div class="step">
+              <div class="n">04</div>
+              <h3>Benchmark</h3>
+              <p>Latency, tokens/sec, peak RAM, on-disk size and perplexity across every backend.</p>
+              <span class="f">edgellm benchmark</span>
+            </div>
+            <div class="step">
+              <div class="n">05</div>
+              <h3>Report</h3>
+              <p>Regenerate the results table and bar chart straight from the measurements JSON.</p>
+              <span class="f">edgellm report</span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- TARGETS -->
+      <section>
+        <div class="wrap">
+          <div class="sec-head">
+            <span class="sec-tag">Runtimes</span>
+            <h2>Four ways to run the quantized model</h2>
+          </div>
+          <div class="targets">
+            <div class="target">
+              <div class="ic">🐍</div>
+              <h3>Python + ONNX Runtime</h3>
+              <p>PyTorch and ORT runners behind one interface, so every precision is measured the same way.</p>
+              <span class="badge ok">✓ measured</span>
+            </div>
+            <div class="target">
+              <div class="ic">⚙️</div>
+              <h3>C++17 harness</h3>
+              <p>
+                <span class="inline-code">edgellm_infer</span> does autoregressive greedy decoding
+                with a KV cache through the ORT C++ API, self-configuring from
+                <span class="inline-code">config.json</span>.
+              </p>
+              <span class="badge ok">✓ 69.9 tok/s INT8</span>
+            </div>
+            <div class="target">
+              <div class="ic">📱</div>
+              <h3>Android (ORT Mobile)</h3>
+              <p>Kotlin app with the same KV-cache greedy decode, showing on-device tok/s in the UI.</p>
+              <span class="badge ok">✓ scaffold builds in Android Studio</span>
+            </div>
+            <div class="target">
+              <div class="ic">🔲</div>
+              <h3>Snapdragon NPU</h3>
+              <p>Two paths: Qualcomm AI Hub device-farm profiling, and the ORT QNN execution provider.</p>
+              <span class="badge wait">⏳ needs AI Hub token</span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- FINDINGS -->
+      <section id="findings">
+        <div class="wrap">
+          <div class="sec-head">
+            <span class="sec-tag">Findings</span>
+            <h2>What the numbers actually taught me</h2>
+            <p>Including the results that did not go the textbook way — kept in, not hidden.</p>
+          </div>
+          <div class="cards">
+            <div class="card">
+              <div class="k">Scheme &gt; bit width</div>
+              <h3>Not all INT8 is equal</h3>
+              <p>
+                ONNX Runtime's <b>per-channel</b> INT8 holds perplexity at 20.10. PyTorch's default
+                <b>per-tensor</b> dynamic INT8 — same 8 bits — collapses to <b>58.42</b>, because on
+                ARM/qnnpack it also ignores <span class="inline-code">reduce_range</span>.
+              </p>
+              <p>
+                That row stays in the benchmark table as a demonstration of the failure mode rather
+                than a result to bury.
+              </p>
+            </div>
+            <div class="card">
+              <div class="k">Model-specific</div>
+              <h3>INT4 didn't beat INT8 on size</h3>
+              <p>
+                771 MB vs 605 MB. Qwen2.5-0.5B has a ~152k-token vocab, so its tied embedding /
+                <span class="inline-code">lm_head</span> weight dominates the file. Weight-only INT4
+                compresses the MatMuls but not the FP32 embedding
+                <span class="inline-code">Gather</span>, and the tied head adds a 4-bit copy.
+              </p>
+              <p>Perplexity degrades further too (24.58). On a smaller-vocab model, INT4 wins.</p>
+            </div>
+            <div class="card">
+              <div class="k">Runtime overhead</div>
+              <h3>The same weights are faster in C++</h3>
+              <p>
+                Identical INT8 ONNX model: 38.3 tok/s through the Python wrapper, <b>69.9 tok/s</b>
+                through the C++ harness, with prefill down from 257 ms to 66 ms. The gap is
+                per-step Python overhead, not the model.
+              </p>
+            </div>
+            <div class="card">
+              <div class="k">Honest caveat</div>
+              <h3>The compiler is a strong baseline</h3>
+              <p>
+                A hand-written NEON <b>SDOT</b> INT8 GEMM hits <b>59.2 GOPS</b> vs 3.63 for a scalar
+                loop with vectorization disabled — <b>16.3×</b>. But at
+                <span class="inline-code">-O3</span> the compiler auto-vectorizes that same naive
+                loop to ~74 GOPS.
+              </p>
+              <p>
+                The real lesson: beating a modern compiler on simple INT8 dot products takes
+                register and cache blocking, not just intrinsics.
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- HONESTY -->
+      <section>
+        <div class="wrap">
+          <div class="banner">
+            <div class="ic">🔬</div>
+            <div>
+              <h3>No invented numbers</h3>
+              <p>
+                Every latency, throughput, memory, size and accuracy figure on this page came out of
+                an actual run on real hardware, reproducible with
+                <span class="inline-code">bash scripts/run_all.sh</span>. The one stage that needs
+                hardware not yet wired up — the Qualcomm Snapdragon NPU row — stays a clearly
+                labeled <span class="inline-code">TODO(vijay)</span> placeholder until an AI Hub
+                token is set and the job runs. Both NPU entry points print the exact setup steps and
+                exit cleanly instead of pretending.
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- QUICKSTART -->
+      <section id="quickstart">
+        <div class="wrap">
+          <div class="sec-head">
+            <span class="sec-tag">Quickstart</span>
+            <h2>Run it yourself</h2>
+          </div>
+          <div class="qs">
+            <div>
+              <ul class="plain">
+                <li>Python 3.10–3.12 (the repo builds its venv on 3.11).</li>
+                <li>
+                  <span class="inline-code">edgellm info</span> prints the resolved model and device
+                  for your machine before anything downloads.
+                </li>
+                <li>
+                  The C++ harness needs <span class="inline-code">cmake</span> and
+                  <span class="inline-code">onnxruntime</span>; on non-macOS set
+                  <span class="inline-code">ORT_HOME</span>.
+                </li>
+                <li>
+                  CI runs <span class="inline-code">ruff</span>,
+                  <span class="inline-code">black</span> and
+                  <span class="inline-code">pytest</span> on every push.
+                </li>
+              </ul>
+            </div>
+            <div class="term mono">
+              <div class="term-bar"><i></i><i></i><i></i><span>zsh</span></div>
+              <pre><span class="c-cmt"># 1 · install</span>
+<span class="c-prompt">$</span> python3.11 -m venv .venv && source .venv/bin/activate
+<span class="c-prompt">$</span> pip install -e <span class="c-hi">".[onnx,eval,report]"</span>
+
+<span class="c-cmt"># 2 · generate, quantize, measure</span>
+<span class="c-prompt">$</span> edgellm generate -p <span class="c-hi">"Explain quantization in one sentence."</span>
+<span class="c-prompt">$</span> edgellm export && edgellm quantize
+<span class="c-prompt">$</span> edgellm benchmark && edgellm report
+
+<span class="c-cmt"># 3 · run inference from C++</span>
+<span class="c-prompt">$</span> cmake -S cpp -B cpp/build -DCMAKE_BUILD_TYPE=Release
+<span class="c-prompt">$</span> cmake --build cpp/build
+<span class="c-prompt">$</span> ./cpp/build/edgellm_infer --model artifacts/onnx/…-int8-dynamic \
+      --tokens <span class="c-hi">"$(edgellm encode -p 'Hello')"</span> --max-new-tokens 48</pre>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- FINAL CTA -->
+      <div class="cta-final">
+        <div class="wrap">
+          <h2>Read the code, or reproduce the table</h2>
+          <p>
+            Python package, C++ harness, SIMD kernel, Android app and CI — MIT licensed, all in one
+            repository.
+          </p>
+          <div class="cta-row">
+            <a class="btn btn-primary" href="https://github.com/vijay-kapse/EdgeLLM">github.com/vijay-kapse/EdgeLLM</a>
+            <a class="btn btn-ghost" href="https://www.linkedin.com/in/vijay-kapse/">Get in touch</a>
+          </div>
+        </div>
+      </div>
+    </main>
+
+    <footer>
+      <div class="wrap foot">
+        <div>MIT © 2026 Vijay Kapse · built for edge GenAI work</div>
+        <div class="foot-links">
+          <a href="https://github.com/vijay-kapse/EdgeLLM">Repository</a>
+          <a href="https://github.com/vijay-kapse">More projects</a>
+          <a href="https://www.linkedin.com/in/vijay-kapse/">LinkedIn</a>
+          <a href="mailto:vijayskofficial@gmail.com">Email</a>
+        </div>
+      </div>
+    </footer>
+  </body>
+</html>

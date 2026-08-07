@@ -2,6 +2,8 @@
 
 **Quantize a small language model and run it on-device — CPU, GPU, mobile, and a Qualcomm Snapdragon NPU — with a C/C++ inference harness and a rigorous, honestly-measured benchmark suite.**
 
+[**Project site ↗**](https://edgellm.vercel.app) · [Benchmarks](#benchmark-results) · [C++ harness](#c-inference-harness-phase-4) · [Snapdragon NPU](#qualcomm-snapdragon-npu-phase-5) · [Quickstart](#setup)
+
 This is a portfolio project built around the requirements of a Qualcomm *Machine Learning Engineer (AI Research, GenAI for the Edge)* role. Every latency, throughput, memory, size, and accuracy number in this README comes from an **actual run** on real hardware. Steps that require hardware or credentials I have not yet wired up are shown as clearly-labeled `TODO(vijay): run on <device>` placeholders — never invented.
 
 > Status: **All phases (0–8) implemented.** The only remaining number is the Qualcomm NPU on-device row, which awaits an AI Hub token (clearly marked placeholder, never faked). The Android app is a scaffold to build in Android Studio; everything else runs on this machine.
@@ -230,6 +232,15 @@ cp artifacts/onnx/Qwen__Qwen2.5-0.5B-Instruct-int8-dynamic/model.onnx \
 ```
 
 Tokenization on-device is a documented `TODO` in `HfTokenizer.kt` (bundle `tokenizer.json` + onnxruntime-extensions, or pre-tokenize with `edgellm encode`). The model-inference path is complete.
+
+## Project site
+
+[**edgellm.vercel.app**](https://edgellm.vercel.app) — a single self-contained static page (no build step, no dependencies) covering the pipeline, the measured benchmark tables, the four runtimes, and the findings. Every figure on it is taken from the tables in this README; nothing there is generated or estimated, and the Snapdragon NPU row is shown as pending rather than filled in.
+
+```bash
+open site/index.html              # view locally
+cd site && vercel deploy --prod   # redeploy
+```
 
 ## Development
 
