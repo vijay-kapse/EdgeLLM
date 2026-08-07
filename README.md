@@ -4,9 +4,9 @@
 
 [**Project site ↗**](https://edgellm.vercel.app) · [Benchmarks](#benchmark-results) · [C++ harness](#c-inference-harness-phase-4) · [Snapdragon NPU](#qualcomm-snapdragon-npu-phase-5) · [Quickstart](#setup)
 
-This is a portfolio project built around the requirements of a Qualcomm *Machine Learning Engineer (AI Research, GenAI for the Edge)* role. Every latency, throughput, memory, size, and accuracy number in this README comes from an **actual run** on real hardware. Steps that require hardware or credentials I have not yet wired up are shown as clearly-labeled `TODO(vijay): run on <device>` placeholders — never invented.
+This is a portfolio project built around the requirements of a Qualcomm *Machine Learning Engineer (AI Research, GenAI for the Edge)* role. Every latency, throughput, memory, size, and accuracy number in this README comes from an **actual run** on real hardware. Steps that require hardware or credentials I have not yet wired up are left out of the results rather than estimated — never invented.
 
-> Status: **All phases (0–8) implemented.** The only remaining number is the Qualcomm NPU on-device row, which awaits an AI Hub token (clearly marked placeholder, never faked). The Android app is a scaffold to build in Android Studio; everything else runs on this machine.
+> Status: **All phases (0–8) implemented.** The only measurement still outstanding is the Qualcomm NPU on-device run, which awaits an AI Hub token — the code path is wired up, and no number for it appears in the results until it actually runs. The Android app is a scaffold to build in Android Studio; everything else runs on this machine.
 
 ## Architecture
 
@@ -64,7 +64,6 @@ Real numbers are filled in as each phase runs. Nothing here is invented.
 | **ort-cpu** | **int8** | **cpu** | **604.98** | **1.67 ± 0.04** | **38.27** | **2861.8** | **20.10** |
 | ort-cpu | int4 | cpu | 770.93 | 3.21 ± 0.07 | 19.97 | 3194.2 | 24.58 |
 | pytorch | int8 | cpu | n/a¹ | 4.02 ± 0.08 | 15.92 | 5396.5 | 58.42 |
-| ort-qnn | int8 | Snapdragon NPU | _TODO(vijay): run on Snapdragon (Phase 5)_ | _TODO_ | _TODO_ | _TODO_ | _TODO_ |
 
 ![Benchmark chart](results/benchmark_chart.png)
 
@@ -195,7 +194,7 @@ edgellm snapdragon --precision int8 --device "Snapdragon 8 Elite QRD"
 # (equivalently: python aihub/run_on_snapdragon.py --model artifacts/onnx/<model>-int8-dynamic)
 ```
 
-Without a token, both entry points print these exact steps and exit cleanly — **the Snapdragon NPU row in the benchmark table stays a labeled `TODO(vijay)` placeholder until the token is set and the job runs.** No device number is ever invented.
+Without a token, both entry points print these exact steps and exit cleanly — **the benchmark table simply carries no Snapdragon NPU entry until the token is set and the job runs.** No device number is ever invented.
 
 ## Custom INT8 GEMM kernel (Phase 7, stretch)
 
@@ -235,7 +234,7 @@ Tokenization on-device is a documented `TODO` in `HfTokenizer.kt` (bundle `token
 
 ## Project site
 
-[**edgellm.vercel.app**](https://edgellm.vercel.app) — a single self-contained static page (no build step, no dependencies) covering the pipeline, the measured benchmark tables, the four runtimes, and the findings. Every figure on it is taken from the tables in this README; nothing there is generated or estimated, and the Snapdragon NPU row is shown as pending rather than filled in.
+[**edgellm.vercel.app**](https://edgellm.vercel.app) — a single self-contained static page (no build step, no dependencies) covering the pipeline, the measured benchmark tables, the four runtimes, and the findings. Every figure on it is taken from the tables in this README; nothing there is generated or estimated.
 
 ```bash
 open site/index.html              # view locally
