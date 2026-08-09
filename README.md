@@ -232,6 +232,41 @@ cp artifacts/onnx/Qwen__Qwen2.5-0.5B-Instruct-int8-dynamic/model.onnx \
 
 Tokenization on-device is a documented `TODO` in `HfTokenizer.kt` (bundle `tokenizer.json` + onnxruntime-extensions, or pre-tokenize with `edgellm encode`). The model-inference path is complete.
 
+## Containers and infrastructure
+
+`Dockerfile` builds both native binaries against a **pinned** ONNX Runtime release
+(`ORT_VERSION`, default 1.22.0) and ships them with the Python pipeline in a slim
+runtime image. Pinning is the point: benchmark numbers are only comparable across
+runs if the inference runtime is held fixed.
+
+The image is **architecture-aware**. On arm64 the GEMM kernel compiles the ARM
+NEON SDOT path; on amd64 it compiles AVX2. Running the same image on an Apple
+Silicon laptop and on an x86 cloud instance therefore measures two genuinely
+different SIMD backends, rather than one of them under emulation.
+
+```bash
+docker build -t edgellm .
+
+docker compose run --rm kernel-bench             # SIMD microbenchmark (M N K iters)
+docker compose run --rm pipeline quantize        # export + quantize
+docker compose run --rm pipeline benchmark       # measure all precisions
+docker compose run --rm pipeline report          # write results/ table + chart
+docker compose run --rm infer --help             # C++ KV-cache harness
+```
+
+Generated state — `artifacts/`, `results/`, and the Hugging Face cache — is
+mounted rather than baked in, so rebuilding the image can never silently change
+a published number.
+
+`infra/terraform/` provisions a single GPU instance on AWS for the two rows this
+laptop cannot measure: **GPTQ/AWQ INT4**, which needs CUDA, and the **ONNX Runtime
+CUDA execution provider**, which needs an NVIDIA device. First boot records host
+provenance, builds the image, and runs the AVX2 kernel benchmark; the model
+quantization and benchmark suite are left to run by hand, because an unattended
+number nobody watched is not a number this repo will publish. See
+[`infra/terraform/README.md`](infra/terraform/README.md) — including the cost and
+teardown notes.
+
 ## Project site
 
 [**edgellm.vercel.app**](https://edgellm.vercel.app) — a single self-contained static page (no build step, no dependencies) covering the pipeline, the measured benchmark tables, the four runtimes, and the findings. Every figure on it is taken from the tables in this README; nothing there is generated or estimated.

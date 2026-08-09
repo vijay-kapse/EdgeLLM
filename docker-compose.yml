@@ -1,0 +1,73 @@
+# EdgeLLM container entry points.
+#
+# One image (see Dockerfile), three ways in. Generated state — model artifacts,
+# benchmark results, the Hugging Face cache — lives in mounts rather than in the
+# image, so a rebuild never silently changes a published number.
+#
+#   docker compose run --rm kernel-bench          # SIMD microbenchmark
+#   docker compose run --rm pipeline quantize     # export + quantize
+#   docker compose run --rm pipeline benchmark    # measure all precisions
+#   docker compose run --rm pipeline report       # write results/ table + chart
+#   docker compose run --rm infer --help          # C++ KV-cache harness
+#
+# Everything is `run`, not `up`: these are batch jobs that exit, not services.
+
+name: edgellm
+
+x-common: &common
+  build:
+    context: .
+    dockerfile: Dockerfile
+    args:
+      # Pinned so benchmark runs stay comparable. Override here, not per-run.
+      ORT_VERSION: "1.22.0"
+  image: edgellm:local
+  volumes:
+    - ./artifacts:/app/artifacts
+    - ./results:/app/results
+    - hf-cache:/cache/huggingface
+  environment:
+    # Keep thread counts explicit: benchmarks that silently pick up a different
+    # core count are not comparable across machines.
+    OMP_NUM_THREADS: "${OMP_NUM_THREADS:-4}"
+
+services:
+  # Scalar vs. hand-vectorized INT8 GEMM. Compiles to NEON SDOT on arm64 hosts
+  # and AVX2 on amd64, so the same command measures a different kernel on each.
+  # Args are M N K iters.
+  kernel-bench:
+    <<: *common
+    entrypoint: ["int8_gemm"]
+    command: ["256", "256", "512", "50"]
+
+  # C++17 inference harness (KV-cache greedy decode through the ORT C++ API).
+  # Needs a model directory containing model.onnx + config.json, and
+  # pre-tokenized input ids -- tokenization lives on the Python side:
+  #   docker compose run --rm pipeline encode "your prompt here"
+  #   docker compose run --rm infer \
+  #     --model artifacts/onnx/Qwen__Qwen2.5-0.5B-Instruct-int8-dynamic \
+  #     --tokens "151644 872 198" --max-new-tokens 64
+  infer:
+    <<: *common
+    entrypoint: ["edgellm_infer"]
+    command: ["--help"]
+
+  # The Python side: export, quantize, benchmark, report.
+  pipeline:
+    <<: *common
+    entrypoint: ["edgellm"]
+    command: ["--help"]
+
+  # Interactive poke-around; the toolchain is not in the runtime image, so this
+  # is for inspecting artifacts and rerunning CLI steps, not for compiling.
+  shell:
+    <<: *common
+    entrypoint: ["/bin/bash"]
+    command: []
+    stdin_open: true
+    tty: true
+
+volumes:
+  # Named rather than bind-mounted: model downloads are large and shouldn't
+  # land in the working tree.
+  hf-cache:
