@@ -1,0 +1,51 @@
+name: Rebuild leaderboard
+
+# Contributors submit a result card and nothing else. The leaderboard is a
+# generated artifact, so it is rebuilt here after a merge and committed back —
+# asking a first-time contributor to also regenerate a Markdown table is the
+# kind of friction that loses the submission.
+on:
+  push:
+    branches: [main]
+    paths:
+      - "results/community/**"
+      - "edgellm/leaderboard.py"
+      - "edgellm/validate.py"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: leaderboard
+  cancel-in-progress: false
+
+jobs:
+  rebuild:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e .
+
+      - name: Rebuild from every submitted card
+        run: edge-llm-bench leaderboard
+
+      - name: Commit if it changed
+        run: |
+          if git diff --quiet -- results/LEADERBOARD.md site/leaderboard.json; then
+            echo "Leaderboard unchanged."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add results/LEADERBOARD.md site/leaderboard.json
+          git commit -m "Rebuild leaderboard from submitted cards"
+          git push

@@ -3,37 +3,50 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [project]
-name = "edgellm"
-version = "0.1.0"
-description = "Quantize a small LLM and run it on-device (CPU/GPU/mobile/Qualcomm NPU) with a C++ harness and honest benchmarks."
+name = "edge-llm-bench"
+version = "0.2.0"
+description = "Benchmark quantized LLMs on your own hardware: speed, size and quality, measured not estimated."
 readme = "README.md"
 license = { text = "MIT" }
-requires-python = ">=3.10,<3.13"
+requires-python = ">=3.10"
 authors = [{ name = "Vijay Kapse" }]
-keywords = ["llm", "quantization", "onnx", "edge", "qualcomm", "npu", "inference"]
+keywords = [
+  "llm", "quantization", "onnx", "onnxruntime", "benchmark", "edge",
+  "inference", "int8", "int4", "perplexity", "qualcomm", "npu",
+]
 classifiers = [
+  "Development Status :: 4 - Beta",
+  "Environment :: Console",
+  "Intended Audience :: Developers",
+  "Intended Audience :: Science/Research",
+  "License :: OSI Approved :: MIT License",
   "Programming Language :: Python :: 3.10",
   "Programming Language :: Python :: 3.11",
   "Programming Language :: Python :: 3.12",
-  "License :: OSI Approved :: MIT License",
+  "Programming Language :: Python :: 3.13",
+  "Programming Language :: Python :: 3.14",
+  "Topic :: Scientific/Engineering :: Artificial Intelligence",
+  "Topic :: System :: Benchmark",
 ]
 dependencies = [
-  "torch>=2.2",
-  "transformers>=4.44",
-  "typer>=0.12",
-  "pyyaml>=6.0",
+  "onnxruntime>=1.18",
   "numpy>=1.24",
+  "tokenizers>=0.19",
+  "huggingface_hub>=0.23",
+  "typer>=0.12",
   "psutil>=5.9",
+  "pyyaml>=6.0",
 ]
 
 [project.optional-dependencies]
-onnx = [
+# Authoring new quantized artifacts (export + quantize). Not needed to run a
+# benchmark or submit results.
+quantize = [
+  "torch>=2.2",
+  "transformers>=4.44",
   "onnx>=1.16",
-  "onnxruntime>=1.18",
   "optimum[onnxruntime]>=1.20",
   "onnx_ir>=0.2",           # required by ORT's INT4 MatMulNBitsQuantizer
-]
-eval = [
   "datasets>=2.19",
 ]
 report = [
@@ -45,11 +58,16 @@ aihub = [
 dev = [
   "pytest>=8.0",
   "ruff>=0.5",
-  "black>=24.0",
 ]
 
+[project.urls]
+Homepage = "https://github.com/vijay-kapse/EdgeLLM"
+Leaderboard = "https://github.com/vijay-kapse/EdgeLLM/blob/main/results/LEADERBOARD.md"
+Issues = "https://github.com/vijay-kapse/EdgeLLM/issues"
+
 [project.scripts]
-edgellm = "edgellm.cli:main"
+edge-llm-bench = "edgellm.cli:main"
+edgellm = "edgellm.cli:main"      # retained: the pre-0.2 command name
 
 [tool.hatch.build.targets.wheel]
 packages = ["edgellm"]
@@ -64,6 +82,7 @@ select = ["E", "F", "I", "W", "UP", "B"]
 [tool.ruff.lint.per-file-ignores]
 # Typer's API deliberately puts Option()/Argument() calls in argument defaults.
 "edgellm/cli.py" = ["B008"]
+"edgellm/cli_bench.py" = ["B008"]
 
 [tool.black]
 line-length = 100

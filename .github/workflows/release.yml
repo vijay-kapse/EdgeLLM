@@ -1,0 +1,84 @@
+name: Release to PyPI
+
+# Publishes on a version tag. Uses PyPI Trusted Publishing (OIDC), so there is no
+# API token stored in this repository at all.
+#
+# One-time setup on PyPI, before the first tag:
+#   https://pypi.org/manage/project/edge-llm-bench/settings/publishing/
+#   owner: vijay-kapse   repo: EdgeLLM   workflow: release.yml   environment: pypi
+#
+# Then:  git tag v0.2.0 && git push origin v0.2.0
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Build sdist and wheel
+        run: |
+          python -m pip install --upgrade pip build
+          python -m build
+
+      - name: Verify the eval corpus is inside the wheel
+        # A wheel missing the pinned corpus installs fine and then fails the hash
+        # check on first use, so this is checked before anything is published.
+        run: |
+          python - <<'PY'
+          import glob, zipfile
+          wheel = sorted(glob.glob("dist/*.whl"))[-1]
+          names = zipfile.ZipFile(wheel).namelist()
+          assert "edgellm/data/eval_wikitext2.txt" in names, f"corpus missing from {wheel}"
+          print(f"{wheel}: corpus bundled")
+          PY
+
+      - name: Check the tag matches the packaged version
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: |
+          python - <<'PY'
+          import glob, os, re
+          tag = os.environ["GITHUB_REF_NAME"].lstrip("v")
+          wheel = os.path.basename(sorted(glob.glob("dist/*.whl"))[-1])
+          version = re.match(r"edge_llm_bench-([^-]+)-", wheel).group(1)
+          assert version == tag, f"tag {tag!r} does not match built version {version!r}"
+          print(f"tag and version agree: {version}")
+          PY
+
+      - name: Smoke-test the built wheel in a clean environment
+        run: |
+          python -m venv /tmp/smoke
+          /tmp/smoke/bin/pip install --quiet dist/*.whl
+          /tmp/smoke/bin/edge-llm-bench --help > /dev/null
+          /tmp/smoke/bin/python -c "
+          import sys, edgellm.cli
+          heavy = {m.split('.')[0] for m in sys.modules} & {'torch', 'transformers'}
+          assert not heavy, heavy
+          print('wheel installs clean and imports torch-free')
+          "
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: dist/
+
+  publish:
+    needs: build
+    runs-on: ubuntu-latest
+    environment: pypi
+    permissions:
+      id-token: write    # required for Trusted Publishing
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist/
+
+      - uses: pypa/gh-action-pypi-publish@release/v1

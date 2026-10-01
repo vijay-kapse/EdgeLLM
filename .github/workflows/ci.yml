@@ -10,7 +10,9 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        python-version: ["3.11"]
+        # The default install must keep working on every Python it claims to
+        # support, including the newest — people run this on whatever they have.
+        python-version: ["3.10", "3.11", "3.12", "3.13"]
     steps:
       - uses: actions/checkout@v4
 
@@ -19,18 +21,53 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
 
-      - name: Install (CPU-only torch + dev tools)
+      - name: Install (default deps only — no torch)
         run: |
           python -m pip install --upgrade pip
-          # CPU wheels keep CI fast and avoid CUDA downloads.
-          pip install torch --index-url https://download.pytorch.org/whl/cpu
           pip install -e ".[dev]"
 
       - name: Ruff (lint)
         run: ruff check .
 
-      - name: Black (format check)
-        run: black --check .
+      - name: Ruff (format check)
+        run: ruff format --check .
 
       - name: Pytest
         run: pytest
+
+      - name: Assert the default install stays torch-free
+        # The whole contribution path depends on this: if importing the CLI ever
+        # drags in torch, a one-command benchmark becomes a multi-gigabyte one.
+        run: |
+          python - <<'PY'
+          import sys
+          import edgellm.cli  # noqa: F401
+          heavy = {m.split(".")[0] for m in sys.modules} & {
+              "torch", "transformers", "optimum", "datasets", "onnx", "matplotlib"
+          }
+          assert not heavy, f"CLI import pulled in heavy dependencies: {sorted(heavy)}"
+          print("CLI import is torch-free")
+          PY
+
+  validate-submitted-cards:
+    name: Validate result cards
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e .
+
+      - name: Validate every card in results/community
+        run: python -m edgellm.validate results/community
+
+      - name: Confirm the leaderboard still builds from these cards
+        # Only that it *builds*. A contributor's PR adds a card and nothing else;
+        # regenerating LEADERBOARD.md is the merge job's responsibility, not theirs.
+        run: edge-llm-bench leaderboard --out /tmp/leaderboard.md --json-out /tmp/leaderboard.json
