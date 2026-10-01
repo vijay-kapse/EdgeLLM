@@ -7,10 +7,13 @@ from pathlib import Path
 
 import pytest
 
-from edgellm.quantize import Quantizer
-
 
 def test_int4_availability_keys() -> None:
+    # Quantization is the authoring path, which lives behind the `quantize`
+    # extra. The default install has no torch, so this skips rather than fails.
+    pytest.importorskip("torch")
+    from edgellm.quantize import Quantizer
+
     avail = Quantizer.int4_availability()
     assert "onnxruntime block-wise INT4" in avail
     # ORT INT4 always runs on CPU; the value should say so.
