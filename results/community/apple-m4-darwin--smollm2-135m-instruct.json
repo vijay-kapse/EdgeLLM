@@ -1,0 +1,63 @@
+{
+  "created_utc": "2026-10-01T15:29:59Z",
+  "eval_corpus_sha256": "34a2a43fcf49217f7a42133f961930d8c830ac7fe3cc7927f423f443083f97bf",
+  "eval_windows": 8,
+  "extra": {},
+  "gen_tokens": 32,
+  "machine": {
+    "arch": "arm64",
+    "cpu": "Apple M4",
+    "intra_op_threads": 10,
+    "logical_cores": 10,
+    "onnxruntime": "1.27.0",
+    "os": "Darwin",
+    "os_release": "25.5.0",
+    "physical_cores": 10,
+    "provider": "CPUExecutionProvider",
+    "python": "3.11.15",
+    "ram_gb": 16
+  },
+  "model_id": "HuggingFaceTB/SmolLM2-135M-Instruct",
+  "notes": "",
+  "prompt_sha256": "5aa95b6216db2659645aafb4371c3323e3e866183b398f1fe2272ad6f92f15cf",
+  "revision": "main",
+  "rows": [
+    {
+      "generated_tokens": 32,
+      "latency_s_mean": 0.4958,
+      "latency_s_std": 0.0282,
+      "measured_runs": 5,
+      "peak_ram_mb": 1067.0,
+      "perplexity": 23.067,
+      "precision": "fp32",
+      "size_mb": 515.31,
+      "tokens_per_second": 64.54
+    },
+    {
+      "generated_tokens": 32,
+      "latency_s_mean": 1.5361,
+      "latency_s_std": 0.1236,
+      "measured_runs": 5,
+      "peak_ram_mb": 819.4,
+      "perplexity": 25.019,
+      "precision": "int8",
+      "size_mb": 130.79,
+      "tokens_per_second": 20.83
+    },
+    {
+      "generated_tokens": 32,
+      "latency_s_mean": 2.6099,
+      "latency_s_std": 0.4882,
+      "measured_runs": 5,
+      "peak_ram_mb": 715.5,
+      "perplexity": 28.346,
+      "precision": "q4",
+      "size_mb": 173.63,
+      "tokens_per_second": 12.26
+    }
+  ],
+  "schema_version": 1,
+  "submitted_by": "",
+  "tool_version": "0.2.0",
+  "warmup_runs": 2
+}

@@ -1,0 +1,90 @@
+{
+  "entries": [
+    {
+      "file": "apple-m4-darwin--smollm2-135m-instruct.json",
+      "comparable": true,
+      "model_id": "HuggingFaceTB/SmolLM2-135M-Instruct",
+      "created_utc": "2026-10-01T15:29:59Z",
+      "submitted_by": "",
+      "notes": "",
+      "cpu": "Apple M4",
+      "arch": "arm64",
+      "os": "Darwin",
+      "physical_cores": 10,
+      "ram_gb": 16,
+      "provider": "CPUExecutionProvider",
+      "threads": 10,
+      "onnxruntime": "1.27.0",
+      "rows": [
+        {
+          "generated_tokens": 32,
+          "latency_s_mean": 0.4958,
+          "latency_s_std": 0.0282,
+          "measured_runs": 5,
+          "peak_ram_mb": 1067.0,
+          "perplexity": 23.067,
+          "precision": "fp32",
+          "size_mb": 515.31,
+          "tokens_per_second": 64.54
+        },
+        {
+          "generated_tokens": 32,
+          "latency_s_mean": 1.5361,
+          "latency_s_std": 0.1236,
+          "measured_runs": 5,
+          "peak_ram_mb": 819.4,
+          "perplexity": 25.019,
+          "precision": "int8",
+          "size_mb": 130.79,
+          "tokens_per_second": 20.83
+        },
+        {
+          "generated_tokens": 32,
+          "latency_s_mean": 2.6099,
+          "latency_s_std": 0.4882,
+          "measured_runs": 5,
+          "peak_ram_mb": 715.5,
+          "perplexity": 28.346,
+          "precision": "q4",
+          "size_mb": 173.63,
+          "tokens_per_second": 12.26
+        }
+      ],
+      "speedups": {
+        "int8": 0.3227455841338704,
+        "q4": 0.18995971490548494
+      },
+      "ppl_deltas": {
+        "int8": 8.462305458013608,
+        "q4": 22.885507434863662
+      }
+    }
+  ],
+  "aggregate": {
+    "by_model_precision": [
+      {
+        "model_id": "HuggingFaceTB/SmolLM2-135M-Instruct",
+        "precision": "int8",
+        "machines": 1,
+        "speedup_median": 0.323,
+        "speedup_min": 0.323,
+        "speedup_max": 0.323,
+        "slower_than_baseline": 1,
+        "ppl_delta_median_pct": 8.46
+      },
+      {
+        "model_id": "HuggingFaceTB/SmolLM2-135M-Instruct",
+        "precision": "q4",
+        "machines": 1,
+        "speedup_median": 0.19,
+        "speedup_min": 0.19,
+        "speedup_max": 0.19,
+        "slower_than_baseline": 1,
+        "ppl_delta_median_pct": 22.89
+      }
+    ]
+  },
+  "rejected": [],
+  "machine_count": 1,
+  "model_count": 1
+}

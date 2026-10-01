@@ -3,15 +3,15 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>EdgeLLM — Quantize an LLM and run it on the edge, measured honestly</title>
+    <title>edge-llm-bench — Find out what quantization actually costs on your hardware</title>
     <meta
       name="description"
-      content="EdgeLLM exports Qwen2.5-0.5B to ONNX, quantizes it to INT8/INT4, and runs it from Python, a C++17 harness, Android, and a Qualcomm Snapdragon NPU — with every latency, size, and perplexity number measured on real hardware."
+      content="One command measures speed, size, memory and perplexity for fp32/int8/int4 on your own CPU. No PyTorch, no GPU. Then compare against every other machine on the public leaderboard."
     />
-    <meta property="og:title" content="EdgeLLM — Quantize an LLM and run it on the edge" />
+    <meta property="og:title" content="edge-llm-bench — quantization, measured on your own hardware" />
     <meta
       property="og:description"
-      content="INT8 ONNX: 4× smaller, 2× faster, perplexity 19.0 → 20.1. A C++17 inference harness, a NEON SDOT INT8 GEMM kernel, and an Android app. Every number from an actual run."
+      content="On an Apple M4, int8 and int4 are 3-4x smaller and 3-5x SLOWER than fp32. Whether quantization pays off depends entirely on your hardware. pip install edge-llm-bench and find out."
     />
     <meta property="og:type" content="website" />
     <meta name="twitter:card" content="summary_large_image" />
@@ -67,6 +67,32 @@
       }
 
       /* ---------- nav ---------- */
+      /* The nav is sticky, so anchor targets need to clear it or every in-page
+         link lands with its heading hidden underneath. */
+      section[id],
+      main[id] {
+        scroll-margin-top: 76px;
+      }
+      /* Wide data tables scroll inside their own box; without this they widen the
+         whole document and the page scrolls sideways on a phone. */
+      .table-scroll {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+      }
+      .table-scroll table {
+        min-width: 560px;
+      }
+      .term pre {
+        overflow-x: auto;
+      }
+      /* The bar-chart tooltips are absolutely positioned and widen the document
+         on a phone, which made the whole page scroll sideways. They are hover
+         affordances, so a touch device loses nothing by not having them. */
+      @media (max-width: 560px) {
+        .tip {
+          display: none;
+        }
+      }
       header.nav {
         position: sticky;
         top: 0;
@@ -763,9 +789,10 @@
       <div class="wrap nav-inner">
         <a class="brand" href="#top">
           <span class="chip">EL</span>
-          EdgeLLM
+          edge-llm-bench
         </a>
         <nav class="nav-links">
+          <a class="hide-sm" href="#leaderboard">Leaderboard</a>
           <a class="hide-sm" href="#benchmarks">Benchmarks</a>
           <a class="hide-sm" href="#pipeline">Pipeline</a>
           <a class="hide-sm" href="#findings">Findings</a>
@@ -780,18 +807,18 @@
       <div class="hero">
         <div class="wrap hero-grid">
           <div>
-            <span class="eyebrow"><span class="dot"></span> Phases 0–8 implemented · MIT</span>
-            <h1>Shrink an LLM <span class="grad">4×</span>, run it <span class="grad">2×</span> faster, and prove it.</h1>
+            <span class="eyebrow"><span class="dot"></span> pip install edge-llm-bench · MIT</span>
+            <h1>Quantization makes it <span class="grad">4× smaller</span>. Whether it's <span class="grad">faster</span> depends on your hardware.</h1>
             <p class="lede">
-              EdgeLLM takes Qwen2.5-0.5B-Instruct from Hugging Face to the edge: ONNX export, INT8
-              and INT4 quantization, a C++17 inference harness with a KV cache, a hand-written NEON
-              SDOT INT8 GEMM kernel, an Android app, and a Qualcomm Snapdragon NPU path — with a
-              benchmark suite where every latency, size, and perplexity number comes from an actual
-              run on real hardware.
+              On an Apple M4, int8 and int4 come out <strong>3–5× slower</strong> than the fp32
+              baseline while being 3–4× smaller — because ONNX Runtime dequantizes inside the matmul
+              when it has no native kernel for your chip. On your machine the answer may be the
+              opposite. One command measures speed, size, peak memory and perplexity on your own
+              CPU, then puts it next to every other machine that has run it. No PyTorch, no GPU.
             </p>
             <div class="hero-cta">
-              <a class="btn btn-primary" href="https://github.com/vijay-kapse/EdgeLLM">View the code on GitHub</a>
-              <a class="btn btn-ghost" href="#benchmarks">See the measurements</a>
+              <a class="btn btn-primary" href="#leaderboard">See the leaderboard</a>
+              <a class="btn btn-ghost" href="https://github.com/vijay-kapse/EdgeLLM">GitHub ↗</a>
             </div>
           </div>
 
@@ -850,6 +877,32 @@
       </section>
 
       <!-- BENCHMARKS -->
+      <!-- LIVE LEADERBOARD (rendered from leaderboard.json, rebuilt on every merge) -->
+      <section id="leaderboard">
+        <div class="wrap">
+          <div class="sec-head">
+            <span class="sec-tag">Leaderboard</span>
+            <h2>What quantization costs, across real machines</h2>
+            <p>
+              Every row below was measured by someone on their own hardware and submitted as a
+              result card. Speedup is relative to that machine's own fp32 baseline, so the numbers
+              compare quantization choices rather than hardware budgets.
+            </p>
+          </div>
+
+          <div id="lb-root">
+            <p class="mono" style="color: var(--faint)">Loading results…</p>
+          </div>
+
+          <div class="term mono" style="margin-top: 28px">
+            <div class="term-bar"><i></i><i></i><i></i><span>add your machine</span></div>
+            <pre><span class="c-prompt">$</span> pip install edge-llm-bench
+<span class="c-prompt">$</span> edge-llm-bench run
+<span class="c-prompt">$</span> edge-llm-bench submit     <span class="c-cmt"># opens the PR for you</span></pre>
+          </div>
+        </div>
+      </section>
+
       <section id="benchmarks">
         <div class="wrap">
           <div class="sec-head">
@@ -1304,5 +1357,118 @@
         </div>
       </div>
     </footer>
+
+    <script>
+      // The leaderboard is generated data: `edge-llm-bench leaderboard` writes
+      // leaderboard.json, and a merge to main rebuilds it. Nothing here is hand-authored,
+      // so the page cannot drift from the committed cards.
+      (async function renderLeaderboard() {
+        const root = document.getElementById('lb-root');
+        if (!root) return;
+
+        const esc = (value) =>
+          String(value).replace(/[&<>"']/g, (c) => ({
+            '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
+          })[c]);
+
+        let board;
+        try {
+          const response = await fetch('leaderboard.json', { cache: 'no-cache' });
+          if (!response.ok) throw new Error('HTTP ' + response.status);
+          board = await response.json();
+        } catch (error) {
+          root.innerHTML =
+            '<p class="mono" style="color: var(--warm)">Could not load leaderboard.json (' +
+            esc(error.message) + '). The committed table is in ' +
+            '<a style="text-decoration:underline" href="https://github.com/vijay-kapse/EdgeLLM/blob/main/results/LEADERBOARD.md">results/LEADERBOARD.md</a>.</p>';
+          return;
+        }
+
+        const entries = board.entries || [];
+        if (!entries.length) {
+          root.innerHTML =
+            '<p class="mono" style="color: var(--faint)">No submissions yet — yours would be the first.</p>';
+          return;
+        }
+
+        const plural = (n, noun) => n + ' ' + noun + (n === 1 ? '' : 's');
+        const parts = [
+          '<p class="mono" style="color: var(--muted); margin-bottom: 18px">' +
+            [plural(board.machine_count || 0, 'machine'),
+             plural(board.model_count || 0, 'model'),
+             plural(entries.length, 'card') + ' submitted'].join(' · ') +
+          '</p>',
+        ];
+
+        const aggregate = (board.aggregate && board.aggregate.by_model_precision) || [];
+        if (aggregate.length) {
+          parts.push(
+            '<h3 style="font-size:1.1rem;margin:0 0 10px">Does it pay off?</h3>' +
+            '<div class="table-scroll"><table>' +
+            '<thead><tr><th>Model</th><th>Precision</th><th>Machines</th>' +
+            '<th>Median speedup</th><th>Range</th><th>Slower than fp32</th>' +
+            '<th>Median PPL change</th></tr></thead><tbody>' +
+            aggregate.map((row) => {
+              const median = row.speedup_median ? row.speedup_median.toFixed(2) + 'x' : '—';
+              const range = row.speedup_min != null
+                ? row.speedup_min.toFixed(2) + 'x – ' + row.speedup_max.toFixed(2) + 'x'
+                : '—';
+              const ppl = row.ppl_delta_median_pct != null
+                ? (row.ppl_delta_median_pct > 0 ? '+' : '') + row.ppl_delta_median_pct.toFixed(1) + '%'
+                : '—';
+              // Flag the counterintuitive case the whole project exists to surface.
+              const regressed = row.speedup_median != null && row.speedup_median < 0.95;
+              const colour = regressed ? ' style="color: var(--warm); font-weight: 600"' : '';
+              return '<tr><td class="mono">' + esc(row.model_id.split('/').pop()) + '</td>' +
+                '<td class="mono">' + esc(row.precision) + '</td>' +
+                '<td>' + row.machines + '</td>' +
+                '<td' + colour + '>' + median + '</td>' +
+                '<td class="mono">' + range + '</td>' +
+                '<td>' + row.slower_than_baseline + '/' + row.machines + '</td>' +
+                '<td>' + ppl + '</td></tr>';
+            }).join('') +
+            '</tbody></table></div>'
+          );
+        }
+
+        parts.push('<h3 style="font-size:1.1rem;margin:28px 0 10px">Per-machine results</h3>');
+        for (const entry of entries) {
+          const credit = entry.submitted_by ? ' · submitted by ' + esc(entry.submitted_by) : '';
+          const unranked = entry.comparable
+            ? ''
+            : ' <span style="color: var(--faint)">(not ranked — non-default settings)</span>';
+          parts.push(
+            '<div style="margin-bottom: 22px">' +
+            '<div style="font-weight:600">' + esc(entry.cpu) + ' · ' + esc(entry.os) +
+              ' (' + esc(entry.arch) + ')' + unranked + '</div>' +
+            '<div class="mono" style="color: var(--faint); font-size:.85rem; margin-bottom:8px">' +
+              esc(entry.model_id) + ' · ' + entry.physical_cores + ' cores · ' +
+              Math.round(entry.ram_gb) + ' GB · ' + entry.threads + ' threads · ort ' +
+              esc(entry.onnxruntime) + credit +
+            '</div><div class="table-scroll"><table><thead><tr><th>Precision</th><th>Size (MB)</th><th>tok/s</th>' +
+            '<th>Speedup</th><th>Peak RAM (MB)</th><th>Perplexity</th></tr></thead><tbody>' +
+            entry.rows.map((row) => {
+              const speedup = entry.speedups[row.precision];
+              const text = row.precision === 'fp32'
+                ? 'baseline'
+                : (speedup ? speedup.toFixed(2) + 'x' : '—');
+              const colour = speedup && speedup < 0.95
+                ? ' style="color: var(--warm)"'
+                : (speedup && speedup > 1.15 ? ' style="color: var(--aqua)"' : '');
+              return '<tr><td class="mono">' + esc(row.precision) + '</td>' +
+                '<td>' + Math.round(row.size_mb) + '</td>' +
+                '<td>' + row.tokens_per_second.toFixed(2) + '</td>' +
+                '<td' + colour + '>' + text + '</td>' +
+                '<td>' + Math.round(row.peak_ram_mb) + '</td>' +
+                '<td>' + (row.perplexity ? row.perplexity.toFixed(2) : '—') + '</td></tr>';
+            }).join('') +
+            '</tbody></table></div>' + (entry.notes ? '<p style="color: var(--muted)">' + esc(entry.notes) + '</p>' : '') +
+            '</div>'
+          );
+        }
+
+        root.innerHTML = parts.join('');
+      })();
+    </script>
   </body>
 </html>
