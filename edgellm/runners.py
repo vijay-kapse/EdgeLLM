@@ -9,13 +9,21 @@ ONNX Runtime and QNN runners.
 from __future__ import annotations
 
 import time
-from abc import ABC, abstractmethod
-from dataclasses import asdict, dataclass
 
 import torch
 
+from edgellm.base import GenerationResult, InferenceRunner
 from edgellm.config import GenerationConfig
 from edgellm.models import LoadedModel
+
+__all__ = [
+    "GenerationResult",
+    "InferenceRunner",
+    "PyTorchRunner",
+    "ORTRunner",
+    "QNNRunner",
+    "encode_prompt",
+]
 
 
 def encode_prompt(tokenizer, prompt: str) -> dict[str, torch.Tensor]:
@@ -33,32 +41,6 @@ def encode_prompt(tokenizer, prompt: str) -> dict[str, torch.Tensor]:
             return_dict=True,
         )
     return dict(tokenizer(prompt, return_tensors="pt"))
-
-
-@dataclass
-class GenerationResult:
-    """The text plus the timing/throughput numbers for one generation call."""
-
-    backend: str
-    prompt: str
-    text: str
-    prompt_tokens: int
-    generated_tokens: int
-    latency_s: float
-    tokens_per_second: float
-
-    def as_dict(self) -> dict:
-        return asdict(self)
-
-
-class InferenceRunner(ABC):
-    """Common interface for all inference backends."""
-
-    name: str = "base"
-
-    @abstractmethod
-    def generate(self, prompt: str, generation: GenerationConfig) -> GenerationResult:
-        """Generate a completion for ``prompt`` and report timing."""
 
 
 class PyTorchRunner(InferenceRunner):

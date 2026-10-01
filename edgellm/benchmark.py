@@ -20,12 +20,15 @@ import time
 from collections.abc import Callable
 from dataclasses import asdict, dataclass
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 import psutil
-import torch
 
+from edgellm.base import InferenceRunner
 from edgellm.config import BenchmarkConfig, GenerationConfig
-from edgellm.runners import InferenceRunner
+
+if TYPE_CHECKING:  # ``torch`` is only needed by PerplexityEvaluator (the heavy path).
+    import torch
 
 
 @dataclass
@@ -109,6 +112,8 @@ class PerplexityEvaluator:
         tokenizer,
     ) -> float:
         """``forward_fn(input_ids, attention_mask) -> logits`` (all torch tensors)."""
+        import torch
+
         text = self._load_text()
         input_ids = tokenizer(text, return_tensors="pt").input_ids
         max_len = self.config.eval_max_length
