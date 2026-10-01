@@ -22,27 +22,71 @@ seconds.
 
 ---
 
-## The thing nobody tells you about int4
+## What quantization actually costs
 
-"Quantize it, it'll be smaller and faster" is half right. Here is a real run on
-an Apple M4:
+"Quantize it, it'll be smaller and faster" is half right. Two models, one Apple
+M4, measured with `edge-llm-bench run` at its defaults:
 
-| Precision | Size (MB) | Throughput (tok/s) | Speedup | Peak RAM (MB) | Perplexity | PPL change |
+**SmolLM2-135M-Instruct**
+
+| Precision | Size (MB) | tok/s | Speedup | Peak RAM (MB) | Perplexity | PPL change |
 | --- | --- | --- | --- | --- | --- | --- |
-| fp32 | 515 | 64.54 | baseline | 1067 | 23.07 | baseline |
-| int8 | 131 | 20.83 | **0.32x** | 819 | 25.02 | +8.5% |
-| q4 | 174 | 12.26 | **0.19x** | 716 | 28.35 | +22.9% |
+| fp32 | 515 | 83.65 | baseline | 1360 | 23.07 | baseline |
+| int8 | 131 | 39.36 | **0.47x** | 1002 | 25.02 | +8.5% |
+| q4 | 174 | 57.40 | **0.69x** | 906 | 28.35 | +22.9% |
 
-Both quantized models are 3–4x smaller and **3–5x slower**. That is not a bug in
-the export and it is not unique to this chip: when ONNX Runtime has no native
-kernel for a quantized format on your hardware, it dequantizes back to float
-*inside* the matmul. You pay the unpacking cost on every single token and keep
-none of the arithmetic savings.
+**Qwen2.5-0.5B-Instruct**
 
-So the honest answer to "should I quantize?" is **it depends entirely on your
-hardware**, which is exactly why a benchmark you run yourself beats a number
-from someone's blog post. On this machine you quantize to fit in memory, not to
-go fast. On yours, it might be the opposite — that is the thing worth finding out.
+| Precision | Size (MB) | tok/s | Speedup | Peak RAM (MB) | Perplexity | PPL change |
+| --- | --- | --- | --- | --- | --- | --- |
+| fp32 | 1901 | 21.49 | baseline | 3282 | 19.26 | baseline |
+| int8 | 488 | 10.17 | **0.47x** | 3052 | 21.19 | +10.0% |
+| q4 | 750 | 18.37 | **0.85x** | 2303 | 22.28 | +15.7% |
+
+Smaller: reliably, 3–4x. Less memory: yes, 25–30% off the peak. Faster: **no** —
+int8 generates tokens at 0.47x the fp32 rate on *both* models. That the figure
+lands on 0.47 twice, across a 135M and a 500M model, is what makes it look like
+a property of the runtime rather than an accident of one benchmark.
+
+### Why, and why it is not "quantized maths is slow"
+
+Run the same artifacts over a 512-token prefill instead of one token at a time:
+
+| | prefill (512 tok) | decode (1 tok/step) |
+| --- | --- | --- |
+| SmolLM2 int8 | 0.79x | 0.43x |
+| SmolLM2 q4 | 0.31x | 0.68x |
+| Qwen int8 | 0.97x | 0.59x |
+| Qwen q4 | 0.36x | 1.02x |
+
+The int8 penalty roughly **halves** once there is a batch to amortise over
+(0.43 → 0.79, 0.59 → 0.97). That is the signature of a fixed per-step cost:
+ONNX Runtime unpacks the weights back to float inside each matmul, and a single
+token cannot amortise unpacking a whole weight matrix. fp32 decode is
+bandwidth-bound on *reading* weights; int8 decode is compute-bound on
+*unpacking* them, so it does strictly more work despite being 4x smaller.
+
+Note also that **int8 and q4 invert**: q4 is the better choice for decode
+(0.68x / 1.02x vs int8's 0.43x / 0.59x) and much the worse for prefill
+(0.31x / 0.36x vs 0.79x / 0.97x). They use different kernels —
+`MatMulNBits` for q4, dynamic-quantize + `MatMulInteger` for int8 — with
+opposite strengths. Which format is right depends on whether your workload is
+prompt-heavy or generation-heavy.
+
+### One number that is easy to get wrong
+
+Pin threads to your machine's **performance** cores, not every physical core.
+On this M4 (4 performance + 6 efficiency) pinning all ten cost int8 66% of its
+throughput — 24.1 vs 40.0 tok/s — and doubled run-to-run spread, because an ONNX
+Runtime parallel region ends on a barrier and one thread on an efficiency core
+gates the whole thing. `edge-llm-bench` does this by default and records how it
+decided in every card. It is the single easiest way to publish a wrong number,
+and it is how the first draft of this README got the figures above wrong.
+
+So the honest answer to "should I quantize?" is **measure it on your hardware**,
+which is why this is a tool rather than a blog post. On this machine you quantize
+to fit in memory, not to go faster. On yours it may differ — that is the thing
+worth finding out.
 
 **[See what other machines measured →](results/LEADERBOARD.md)**
 

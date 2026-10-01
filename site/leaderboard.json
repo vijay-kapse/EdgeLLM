@@ -4,7 +4,7 @@
       "file": "apple-m4-darwin--smollm2-135m-instruct.json",
       "comparable": true,
       "model_id": "HuggingFaceTB/SmolLM2-135M-Instruct",
-      "created_utc": "2026-10-01T15:29:59Z",
+      "created_utc": "2026-10-01T22:09:02Z",
       "submitted_by": "",
       "notes": "",
       "cpu": "Apple M4",
@@ -13,50 +13,111 @@
       "physical_cores": 10,
       "ram_gb": 16,
       "provider": "CPUExecutionProvider",
-      "threads": 10,
+      "threads": 4,
+      "thread_policy": "macos-perflevel0",
       "onnxruntime": "1.27.0",
       "rows": [
         {
           "generated_tokens": 32,
-          "latency_s_mean": 0.4958,
-          "latency_s_std": 0.0282,
+          "latency_s_mean": 0.3825,
+          "latency_s_std": 0.0095,
           "measured_runs": 5,
-          "peak_ram_mb": 1067.0,
+          "peak_ram_mb": 1360.0,
           "perplexity": 23.067,
           "precision": "fp32",
           "size_mb": 515.31,
-          "tokens_per_second": 64.54
+          "tokens_per_second": 83.65
         },
         {
           "generated_tokens": 32,
-          "latency_s_mean": 1.5361,
-          "latency_s_std": 0.1236,
+          "latency_s_mean": 0.813,
+          "latency_s_std": 0.0229,
           "measured_runs": 5,
-          "peak_ram_mb": 819.4,
+          "peak_ram_mb": 1001.9,
           "perplexity": 25.019,
           "precision": "int8",
           "size_mb": 130.79,
-          "tokens_per_second": 20.83
+          "tokens_per_second": 39.36
         },
         {
           "generated_tokens": 32,
-          "latency_s_mean": 2.6099,
-          "latency_s_std": 0.4882,
+          "latency_s_mean": 0.5575,
+          "latency_s_std": 0.0284,
           "measured_runs": 5,
-          "peak_ram_mb": 715.5,
+          "peak_ram_mb": 906.5,
           "perplexity": 28.346,
           "precision": "q4",
           "size_mb": 173.63,
-          "tokens_per_second": 12.26
+          "tokens_per_second": 57.4
         }
       ],
       "speedups": {
-        "int8": 0.3227455841338704,
-        "q4": 0.18995971490548494
+        "int8": 0.47053197848176925,
+        "q4": 0.6861924686192468
       },
       "ppl_deltas": {
         "int8": 8.462305458013608,
         "q4": 22.885507434863662
+      }
+    },
+    {
+      "file": "apple-m4-darwin--qwen2-5-0-5b-instruct.json",
+      "comparable": true,
+      "model_id": "onnx-community/Qwen2.5-0.5B-Instruct",
+      "created_utc": "2026-10-01T22:10:50Z",
+      "submitted_by": "",
+      "notes": "",
+      "cpu": "Apple M4",
+      "arch": "arm64",
+      "os": "Darwin",
+      "physical_cores": 10,
+      "ram_gb": 16,
+      "provider": "CPUExecutionProvider",
+      "threads": 4,
+      "thread_policy": "macos-perflevel0",
+      "onnxruntime": "1.27.0",
+      "rows": [
+        {
+          "generated_tokens": 32,
+          "latency_s_mean": 1.4892,
+          "latency_s_std": 0.0506,
+          "measured_runs": 5,
+          "peak_ram_mb": 3282.0,
+          "perplexity": 19.256,
+          "precision": "fp32",
+          "size_mb": 1901.43,
+          "tokens_per_second": 21.49
+        },
+        {
+          "generated_tokens": 32,
+          "latency_s_mean": 3.1456,
+          "latency_s_std": 0.4447,
+          "measured_runs": 5,
+          "peak_ram_mb": 3052.5,
+          "perplexity": 21.186,
+          "precision": "int8",
+          "size_mb": 488.37,
+          "tokens_per_second": 10.17
+        },
+        {
+          "generated_tokens": 32,
+          "latency_s_mean": 1.7418,
+          "latency_s_std": 0.0603,
+          "measured_runs": 5,
+          "peak_ram_mb": 2302.9,
+          "perplexity": 22.28,
+          "precision": "q4",
+          "size_mb": 749.74,
+          "tokens_per_second": 18.37
+        }
+      ],
+      "speedups": {
+        "int8": 0.47324336900884134,
+        "q4": 0.8548161935784087
+      },
+      "ppl_deltas": {
+        "int8": 10.022850020772744,
+        "q4": 15.704196094723732
       }
     }
   ],
@@ -66,9 +127,9 @@
         "model_id": "HuggingFaceTB/SmolLM2-135M-Instruct",
         "precision": "int8",
         "machines": 1,
-        "speedup_median": 0.323,
-        "speedup_min": 0.323,
-        "speedup_max": 0.323,
+        "speedup_median": 0.471,
+        "speedup_min": 0.471,
+        "speedup_max": 0.471,
         "slower_than_baseline": 1,
         "ppl_delta_median_pct": 8.46
       },
@@ -76,15 +137,35 @@
         "model_id": "HuggingFaceTB/SmolLM2-135M-Instruct",
         "precision": "q4",
         "machines": 1,
-        "speedup_median": 0.19,
-        "speedup_min": 0.19,
-        "speedup_max": 0.19,
+        "speedup_median": 0.686,
+        "speedup_min": 0.686,
+        "speedup_max": 0.686,
         "slower_than_baseline": 1,
         "ppl_delta_median_pct": 22.89
+      },
+      {
+        "model_id": "onnx-community/Qwen2.5-0.5B-Instruct",
+        "precision": "int8",
+        "machines": 1,
+        "speedup_median": 0.473,
+        "speedup_min": 0.473,
+        "speedup_max": 0.473,
+        "slower_than_baseline": 1,
+        "ppl_delta_median_pct": 10.02
+      },
+      {
+        "model_id": "onnx-community/Qwen2.5-0.5B-Instruct",
+        "precision": "q4",
+        "machines": 1,
+        "speedup_median": 0.855,
+        "speedup_min": 0.855,
+        "speedup_max": 0.855,
+        "slower_than_baseline": 1,
+        "ppl_delta_median_pct": 15.7
       }
     ]
   },
   "rejected": [],
   "machine_count": 1,
-  "model_count": 1
+  "model_count": 2
 }

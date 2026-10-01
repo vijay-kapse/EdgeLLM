@@ -1,5 +1,5 @@
 {
-  "created_utc": "2026-10-01T22:09:02Z",
+  "created_utc": "2026-10-01T22:10:50Z",
   "eval_corpus_sha256": "34a2a43fcf49217f7a42133f961930d8c830ac7fe3cc7927f423f443083f97bf",
   "eval_windows": 8,
   "extra": {},
@@ -18,43 +18,43 @@
     "ram_gb": 16,
     "thread_policy": "macos-perflevel0"
   },
-  "model_id": "HuggingFaceTB/SmolLM2-135M-Instruct",
+  "model_id": "onnx-community/Qwen2.5-0.5B-Instruct",
   "notes": "",
   "prompt_sha256": "5aa95b6216db2659645aafb4371c3323e3e866183b398f1fe2272ad6f92f15cf",
   "revision": "main",
   "rows": [
     {
       "generated_tokens": 32,
-      "latency_s_mean": 0.3825,
-      "latency_s_std": 0.0095,
+      "latency_s_mean": 1.4892,
+      "latency_s_std": 0.0506,
       "measured_runs": 5,
-      "peak_ram_mb": 1360.0,
-      "perplexity": 23.067,
+      "peak_ram_mb": 3282.0,
+      "perplexity": 19.256,
       "precision": "fp32",
-      "size_mb": 515.31,
-      "tokens_per_second": 83.65
+      "size_mb": 1901.43,
+      "tokens_per_second": 21.49
     },
     {
       "generated_tokens": 32,
-      "latency_s_mean": 0.813,
-      "latency_s_std": 0.0229,
+      "latency_s_mean": 3.1456,
+      "latency_s_std": 0.4447,
       "measured_runs": 5,
-      "peak_ram_mb": 1001.9,
-      "perplexity": 25.019,
+      "peak_ram_mb": 3052.5,
+      "perplexity": 21.186,
       "precision": "int8",
-      "size_mb": 130.79,
-      "tokens_per_second": 39.36
+      "size_mb": 488.37,
+      "tokens_per_second": 10.17
     },
     {
       "generated_tokens": 32,
-      "latency_s_mean": 0.5575,
-      "latency_s_std": 0.0284,
+      "latency_s_mean": 1.7418,
+      "latency_s_std": 0.0603,
       "measured_runs": 5,
-      "peak_ram_mb": 906.5,
-      "perplexity": 28.346,
+      "peak_ram_mb": 2302.9,
+      "perplexity": 22.28,
       "precision": "q4",
-      "size_mb": 173.63,
-      "tokens_per_second": 57.4
+      "size_mb": 749.74,
+      "tokens_per_second": 18.37
     }
   ],
   "schema_version": 2,

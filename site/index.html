@@ -82,6 +82,16 @@
       .table-scroll table {
         min-width: 560px;
       }
+      /* A grid/flex item defaults to min-width:auto and refuses to shrink below
+         its content, so a wide table inside a card pushes the whole page wider
+         instead of scrolling within its own box. */
+      .cards .card,
+      .card .table-scroll {
+        min-width: 0;
+      }
+      .card .table-scroll table {
+        min-width: 320px;
+      }
       .term pre {
         overflow-x: auto;
       }
@@ -793,7 +803,7 @@
         </a>
         <nav class="nav-links">
           <a class="hide-sm" href="#leaderboard">Leaderboard</a>
-          <a class="hide-sm" href="#benchmarks">Benchmarks</a>
+          <a class="hide-sm" href="#benchmarks">Deep dive</a>
           <a class="hide-sm" href="#pipeline">Pipeline</a>
           <a class="hide-sm" href="#findings">Findings</a>
           <a class="hide-sm" href="#quickstart">Quickstart</a>
@@ -810,11 +820,11 @@
             <span class="eyebrow"><span class="dot"></span> pip install edge-llm-bench · MIT</span>
             <h1>Quantization makes it <span class="grad">4× smaller</span>. Whether it's <span class="grad">faster</span> depends on your hardware.</h1>
             <p class="lede">
-              On an Apple M4, int8 and int4 come out <strong>3–5× slower</strong> than the fp32
-              baseline while being 3–4× smaller — because ONNX Runtime dequantizes inside the matmul
-              when it has no native kernel for your chip. On your machine the answer may be the
-              opposite. One command measures speed, size, peak memory and perplexity on your own
-              CPU, then puts it next to every other machine that has run it. No PyTorch, no GPU.
+              On an Apple M4, int8 generates tokens at <strong>0.47× the fp32 rate</strong> while
+              being 4× smaller — and it lands on 0.47 for both a 135M and a 500M model, which makes
+              it look like a property of the runtime rather than one odd benchmark. Smaller: yes.
+              Less memory: yes. Faster: no. One command measures speed, size, peak memory and
+              perplexity on your own CPU, where the answer may well differ. No PyTorch, no GPU.
             </p>
             <div class="hero-cta">
               <a class="btn btn-primary" href="#leaderboard">See the leaderboard</a>
@@ -824,18 +834,18 @@
 
           <div class="term mono">
             <div class="term-bar">
-              <i></i><i></i><i></i><span>edgellm — reproduce everything</span>
+              <i></i><i></i><i></i><span>edge-llm-bench — on an Apple M4</span>
             </div>
-            <pre><span class="c-prompt">$</span> pip install -e <span class="c-hi">".[onnx,eval,report]"</span>
-<span class="c-prompt">$</span> bash scripts/run_all.sh
+            <pre><span class="c-prompt">$</span> pip install edge-llm-bench
+<span class="c-prompt">$</span> edge-llm-bench run
 
-<span class="c-cmt"># export → quantize → benchmark → chart</span>
-<span class="c-out">✓ ONNX FP32 export      2405 MB</span>
-<span class="c-out">✓ INT8 per-channel       <span class="c-hi">605 MB</span>  ppl 20.10</span>
-<span class="c-out">✓ INT4 block-wise        771 MB  ppl 24.58</span>
-<span class="c-out">✓ ORT CPU int8      <span class="c-hi">38.27 tok/s</span>  (1.67 s)</span>
-<span class="c-out">✓ C++ harness int8  <span class="c-hi">69.90 tok/s</span>  (66 ms prefill)</span>
-<span class="c-out">→ results/benchmark_chart.png</span></pre>
+<span class="c-cmt"># fp32 / int8 / int4, measured on this machine</span>
+<span class="c-out">  fp32  515 MB  <span class="c-hi">83.7 tok/s</span>  baseline  ppl 23.1</span>
+<span class="c-out">  int8  131 MB  39.4 tok/s  <span class="c-hi">0.47x</span>     ppl 25.0</span>
+<span class="c-out">  q4    174 MB  57.4 tok/s  <span class="c-hi">0.69x</span>     ppl 28.4</span>
+
+<span class="c-out">→ 4× smaller, 26% less RAM, 2.1× slower.</span>
+<span class="c-out">→ Quantize to fit in RAM, not to go fast.</span></pre>
           </div>
         </div>
       </div>
@@ -847,32 +857,39 @@
             <span class="sec-tag">Measured, not claimed</span>
             <h2>What quantization actually bought</h2>
             <p>
-              Qwen2.5-0.5B-Instruct on Apple Silicon (arm64, macOS), 64 new tokens, greedy, 2 warmup
-              / 5 measured runs. Perplexity on a WikiText-2 slice with 512-token windows.
+              SmolLM2-135M-Instruct, pre-quantized ONNX from the Hub, on an Apple M4 (arm64, macOS):
+              4 performance cores, 32 new tokens, greedy, 2 warmup / 5 measured runs, each precision
+              in its own process. Perplexity over 8 × 512-token windows of a pinned WikiText-2 slice.
+              No instability warning on this run.
             </p>
           </div>
           <div class="stats">
             <div class="stat">
-              <div class="num">4×</div>
-              <div class="lbl">Smaller on disk</div>
-              <div class="sub">605 MB INT8 vs 2405 MB FP32 ONNX</div>
-            </div>
-            <div class="stat">
-              <div class="num">1.94×</div>
-              <div class="lbl">Faster in Python</div>
-              <div class="sub">38.3 vs 19.7 tok/s, ONNX Runtime CPU</div>
-            </div>
-            <div class="stat">
               <div class="num">3.9×</div>
-              <div class="lbl">Faster decode in C++</div>
-              <div class="sub">69.9 vs 18.0 tok/s in the C++17 harness</div>
+              <div class="lbl">Smaller on disk</div>
+              <div class="sub">131 MB int8 vs 515 MB fp32 ONNX</div>
             </div>
             <div class="stat">
-              <div class="num">+1.1</div>
+              <div class="num" style="color: var(--warm)">0.47×</div>
+              <div class="lbl">Throughput — slower, not faster</div>
+              <div class="sub">39.4 vs 83.7 tok/s · the same 0.47× on Qwen2.5-0.5B</div>
+            </div>
+            <div class="stat">
+              <div class="num">26%</div>
+              <div class="lbl">Peak RAM saved</div>
+              <div class="sub">1002 MB vs 1360 MB resident high-water mark</div>
+            </div>
+            <div class="stat">
+              <div class="num">+8.5%</div>
               <div class="lbl">Perplexity cost</div>
-              <div class="sub">19.00 → 20.10 — accuracy essentially held</div>
+              <div class="sub">23.07 → 25.02 — quality mostly held</div>
             </div>
           </div>
+          <p class="chart-note" style="margin-top: 18px">
+            This is one machine, and that is the point: on hardware with native int8 kernels the
+            speed column flips. The <a href="#leaderboard" style="text-decoration: underline">leaderboard</a>
+            is where that spread becomes visible.
+          </p>
         </div>
       </section>
 
@@ -906,12 +923,21 @@
       <section id="benchmarks">
         <div class="wrap">
           <div class="sec-head">
-            <span class="sec-tag">Benchmarks</span>
-            <h2>Every precision, head to head</h2>
+            <span class="sec-tag">Deep dive · Qwen2.5-0.5B</span>
+            <h2>One model, taken apart</h2>
             <p>
-              One axis per chart, real numbers only. Hover any bar for the full measurement. INT8 is
-              highlighted because it wins; the PyTorch dynamic INT8 row is kept in orange precisely
-              because it fails — see the findings below.
+              A different measurement from the leaderboard above, and worth keeping separate: this is
+              <b>Qwen2.5-0.5B-Instruct</b> through the authoring path — locally exported and quantized
+              ONNX, driven by Optimum and by the C++ harness, rather than the pre-quantized artifacts
+              the leaderboard measures. Different model, different runtime, so the numbers are not
+              comparable with the table above and are not meant to be.
+            </p>
+            <p class="chart-note" style="margin-top: 10px">
+              These runs predate a methodology fix. Peak RAM was measured with every precision in one
+              process, which reports the union of their footprints, and the file cache was not warmed
+              before timing — which penalises whichever artifact is largest, here the 2.4&nbsp;GB fp32
+              baseline. Treat the <em>relative throughput</em> here with suspicion and the leaderboard
+              as the trustworthy source; the size and perplexity columns are unaffected.
             </p>
           </div>
 
@@ -1123,9 +1149,15 @@
       <section id="pipeline">
         <div class="wrap">
           <div class="sec-head">
-            <span class="sec-tag">Pipeline</span>
+            <span class="sec-tag">Pipeline · authoring path</span>
             <h2>From Hugging Face checkpoint to on-device tokens</h2>
-            <p>One CLI drives every stage, and each stage writes artifacts the next one measures.</p>
+            <p>
+              This is the pipeline that <em>produces</em> quantized artifacts, behind the
+              <span class="inline-code">.[quantize]</span> extra. Benchmarking does not need any of
+              it — <span class="inline-code">edge-llm-bench run</span> consumes ONNX already
+              published on the Hub, which is what keeps that install torch-free. Reach for these
+              commands when you want to quantize a model yourself.
+            </p>
           </div>
           <div class="pipe">
             <div class="step">
@@ -1212,6 +1244,82 @@
           </div>
           <div class="cards">
             <div class="card">
+              <div class="k">The headline</div>
+              <h3>"Quantize it, it'll be faster" is half wrong</h3>
+              <p>
+                Smaller is reliable. Faster is not. On an Apple M4, running the pre-quantized ONNX
+                everyone actually downloads, int8 generates tokens at <b>0.47×</b> the fp32 rate —
+                and at <b>0.47×</b> again on Qwen2.5-0.5B. The same figure twice, across a 135M and
+                a 500M model, looks like a property of the runtime rather than one odd benchmark.
+              </p>
+              <p>
+                The cause is not slow integer arithmetic. Give the same artifacts a 512-token
+                prefill instead of one token at a time and the int8 penalty roughly <b>halves</b> —
+                0.43× → 0.79× on SmolLM2, 0.59× → 0.97× on Qwen. That is the signature of a fixed
+                per-step cost: ONNX Runtime unpacks the weights back to float inside each matmul,
+                and one token cannot amortise unpacking a whole weight matrix. fp32 decode is
+                bandwidth-bound on <em>reading</em> weights; int8 decode is compute-bound on
+                <em>unpacking</em> them, so it does strictly more work while being 4× smaller.
+              </p>
+            </div>
+            <div class="card">
+              <div class="k">Format, not bit width</div>
+              <h3>int8 and q4 trade places</h3>
+              <p>
+                q4 is the <em>better</em> choice for generation and much the worse for prompt
+                processing — exactly inverted from int8:
+              </p>
+              <div class="table-scroll">
+                <table>
+                  <thead><tr><th></th><th>prefill (512 tok)</th><th>decode (1 tok/step)</th></tr></thead>
+                  <tbody>
+                    <tr><td class="mono">int8</td><td>0.79× / 0.97×</td><td>0.43× / 0.59×</td></tr>
+                    <tr><td class="mono">q4</td><td>0.31× / 0.36×</td><td>0.68× / 1.02×</td></tr>
+                  </tbody>
+                </table>
+              </div>
+              <p>
+                SmolLM2 / Qwen. They run through different kernels —
+                <span class="inline-code">MatMulNBits</span> for q4, dynamic-quantize +
+                <span class="inline-code">MatMulInteger</span> for int8 — with opposite strengths.
+                So the right format depends on whether your workload is prompt-heavy or
+                generation-heavy, which is not a question a single "speedup" number can answer.
+              </p>
+            </div>
+            <div class="card">
+              <div class="k">Methodology</div>
+              <h3>Efficiency cores cost int8 two-thirds of its speed</h3>
+              <p>
+                This M4 has 4 performance and 6 efficiency cores. Pinning ONNX Runtime to all ten
+                physical cores — the obvious default, and the one this tool originally shipped —
+                measured int8 at <b>24.1 tok/s</b>. Pinning the 4 performance cores measured
+                <b>40.0</b>. Same model, same bytes, <b>66%</b> of the throughput thrown away, and
+                run-to-run spread doubled.
+              </p>
+              <p>
+                An ORT parallel region ends on a barrier, so one thread scheduled onto an efficiency
+                core gates the whole region, and the OS places threads differently each run. fp32
+                barely noticed — it is bandwidth-bound — so the bad default penalised precisely the
+                quantized formats under test and made the headline look worse than reality. Every
+                card now records which rule chose its thread count.
+              </p>
+            </div>
+            <div class="card">
+              <div class="k">Methodology</div>
+              <h3>A cold file cache cost 4× on the baseline</h3>
+              <p>
+                ONNX Runtime memory-maps weights and faults them in lazily. Measured straight after
+                download, the fp32 baseline read <b>17 tok/s</b>; warm, the same machine and build
+                read <b>64</b>. Every speedup is divided by that number, so a cold run does not
+                mis-measure one row — it corrupts the whole comparison.
+              </p>
+              <p>
+                The benchmark now reads each artifact through once before timing, runs every
+                precision in its own process so peak RAM is not the union of all of them, and says
+                so out loud when run-to-run variance exceeds 15%.
+              </p>
+            </div>
+            <div class="card">
               <div class="k">Scheme &gt; bit width</div>
               <h3>Not all INT8 is equal</h3>
               <p>
@@ -1243,6 +1351,12 @@
                 through the C++ harness, with prefill down from 257 ms to 66 ms. The gap is
                 per-step Python overhead, not the model.
               </p>
+              <p class="chart-note">
+                Authoring-path measurement on Qwen2.5-0.5B, taken before the thread-pinning and
+                file-cache fixes above. The direction is solid — a C++ decode loop avoids per-token
+                interpreter overhead — but treat the <em>magnitude</em> as unverified until it is
+                re-measured.
+              </p>
             </div>
             <div class="card">
               <div class="k">Honest caveat</div>
@@ -1268,14 +1382,23 @@
           <div class="banner">
             <div class="ic">🔬</div>
             <div>
-              <h3>No invented numbers</h3>
+              <h3>No invented numbers — and we say what validation can't do</h3>
               <p>
                 Every latency, throughput, memory, size and accuracy figure on this page came out of
-                an actual run on real hardware, reproducible with
-                <span class="inline-code">bash scripts/run_all.sh</span>. The one stage that needs
-                hardware not yet wired up — profiling on a Qualcomm Snapdragon NPU — is left out of
-                the table rather than estimated. Both NPU entry points print the exact setup steps
-                and exit cleanly instead of pretending.
+                an actual run on real hardware. Leaderboard rows are reproducible with
+                <span class="inline-code">edge-llm-bench run</span>; the Qwen deep dive with
+                <span class="inline-code">bash scripts/run_all.sh</span>. The one stage needing
+                hardware that is not wired up — profiling on a Qualcomm Snapdragon NPU — is left out
+                of the table rather than estimated.
+              </p>
+              <p>
+                Submitted cards are checked for being malformed, internally inconsistent, scored
+                against a modified eval corpus, run with an unpinned thread count, or carrying
+                identifying information. What that <em>cannot</em> do is prove a number came off real
+                silicon — nothing short of attested execution could. The defence is that every input
+                is pinned (model revision, artifact bytes, corpus hash, prompt hash, token budget),
+                so a fabricated card has to be self-consistent across all of them, and anyone can
+                re-run the exact configuration recorded in it. Cards are reviewed, not trusted.
               </p>
             </div>
           </div>
@@ -1292,39 +1415,40 @@
           <div class="qs">
             <div>
               <ul class="plain">
-                <li>Python 3.10–3.12 (the repo builds its venv on 3.11).</li>
                 <li>
-                  <span class="inline-code">edgellm info</span> prints the resolved model and device
-                  for your machine before anything downloads.
+                  Python 3.10–3.14. The default install is ONNX Runtime, NumPy and a tokenizer —
+                  no PyTorch, no GPU, about ten seconds.
                 </li>
                 <li>
-                  The C++ harness needs <span class="inline-code">cmake</span> and
-                  <span class="inline-code">onnxruntime</span>; on non-macOS set
-                  <span class="inline-code">ORT_HOME</span>.
+                  <span class="inline-code">edge-llm-bench models -m &lt;repo&gt;</span> lists which
+                  precisions a model actually publishes before anything downloads.
                 </li>
                 <li>
-                  CI runs <span class="inline-code">ruff</span>,
-                  <span class="inline-code">black</span> and
-                  <span class="inline-code">pytest</span> on every push.
+                  Quantizing your <em>own</em> artifacts needs the heavier
+                  <span class="inline-code">.[quantize]</span> extra — PyTorch, Optimum and the
+                  C++ harness. Benchmarking does not.
+                </li>
+                <li>
+                  CI runs <span class="inline-code">ruff</span> and
+                  <span class="inline-code">pytest</span> across Python 3.10–3.13, and asserts the
+                  default install never pulls in torch.
                 </li>
               </ul>
             </div>
             <div class="term mono">
               <div class="term-bar"><i></i><i></i><i></i><span>zsh</span></div>
-              <pre><span class="c-cmt"># 1 · install</span>
-<span class="c-prompt">$</span> python3.11 -m venv .venv && source .venv/bin/activate
-<span class="c-prompt">$</span> pip install -e <span class="c-hi">".[onnx,eval,report]"</span>
+              <pre><span class="c-cmt"># 1 · benchmark your own machine</span>
+<span class="c-prompt">$</span> pip install edge-llm-bench
+<span class="c-prompt">$</span> edge-llm-bench run
+<span class="c-prompt">$</span> edge-llm-bench submit     <span class="c-cmt"># opens the PR for you</span>
 
-<span class="c-cmt"># 2 · generate, quantize, measure</span>
-<span class="c-prompt">$</span> edgellm generate -p <span class="c-hi">"Explain quantization in one sentence."</span>
+<span class="c-cmt"># 2 · try another model</span>
+<span class="c-prompt">$</span> edge-llm-bench run -m <span class="c-hi">onnx-community/Qwen2.5-0.5B-Instruct</span>
+
+<span class="c-cmt"># 3 · author your own quantized artifacts (heavy extra)</span>
+<span class="c-prompt">$</span> pip install -e <span class="c-hi">".[quantize]"</span>
 <span class="c-prompt">$</span> edgellm export && edgellm quantize
-<span class="c-prompt">$</span> edgellm benchmark && edgellm report
-
-<span class="c-cmt"># 3 · run inference from C++</span>
-<span class="c-prompt">$</span> cmake -S cpp -B cpp/build -DCMAKE_BUILD_TYPE=Release
-<span class="c-prompt">$</span> cmake --build cpp/build
-<span class="c-prompt">$</span> ./cpp/build/edgellm_infer --model artifacts/onnx/…-int8-dynamic \
-      --tokens <span class="c-hi">"$(edgellm encode -p 'Hello')"</span> --max-new-tokens 48</pre>
+<span class="c-prompt">$</span> cmake -S cpp -B cpp/build -DCMAKE_BUILD_TYPE=Release && cmake --build cpp/build</pre>
             </div>
           </div>
         </div>
@@ -1333,10 +1457,12 @@
       <!-- FINAL CTA -->
       <div class="cta-final">
         <div class="wrap">
-          <h2>Read the code, or reproduce the table</h2>
+          <h2>Run it on your machine</h2>
           <p>
-            Python package, C++ harness, SIMD kernel, Android app and CI — MIT licensed, all in one
-            repository.
+            <span class="inline-code">pip install edge-llm-bench</span> — about ten seconds, no
+            PyTorch, no GPU. Then <span class="inline-code">edge-llm-bench submit</span> puts your
+            hardware on the leaderboard. The quantization pipeline, C++ harness, SIMD kernel and
+            Android app are all in the same MIT-licensed repository.
           </p>
           <div class="cta-row">
             <a class="btn btn-primary" href="https://github.com/vijay-kapse/EdgeLLM">github.com/vijay-kapse/EdgeLLM</a>
@@ -1443,8 +1569,9 @@
               ' (' + esc(entry.arch) + ')' + unranked + '</div>' +
             '<div class="mono" style="color: var(--faint); font-size:.85rem; margin-bottom:8px">' +
               esc(entry.model_id) + ' · ' + entry.physical_cores + ' cores · ' +
-              Math.round(entry.ram_gb) + ' GB · ' + entry.threads + ' threads · ort ' +
-              esc(entry.onnxruntime) + credit +
+              Math.round(entry.ram_gb) + ' GB · ' + entry.threads + ' threads' +
+              (entry.thread_policy ? ' (' + esc(entry.thread_policy) + ')' : '') +
+              ' · ort ' + esc(entry.onnxruntime) + credit +
             '</div><div class="table-scroll"><table><thead><tr><th>Precision</th><th>Size (MB)</th><th>tok/s</th>' +
             '<th>Speedup</th><th>Peak RAM (MB)</th><th>Perplexity</th></tr></thead><tbody>' +
             entry.rows.map((row) => {
