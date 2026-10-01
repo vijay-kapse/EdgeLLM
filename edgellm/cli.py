@@ -8,7 +8,7 @@ from pathlib import Path
 
 import typer
 
-from edgellm import __version__
+from edgellm import __version__, cli_bench
 from edgellm.config import Config
 
 app = typer.Typer(
@@ -17,6 +17,9 @@ app = typer.Typer(
 )
 
 DEFAULT_CONFIG = Path("configs/default.yaml")
+
+# The lightweight benchmark/submit/leaderboard commands live in their own module.
+cli_bench.register(app)
 
 
 def _load_config(config_path: Path) -> Config:
