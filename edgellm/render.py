@@ -112,10 +112,12 @@ def verdict(card: ResultCard, *, baseline: str = BASELINE) -> list[str]:
         verb = "is" if len(slower) == 1 else "are"
         findings.append(
             f"- On this machine **{names} {verb} slower than {baseline}** despite being smaller. "
-            "That is the normal outcome when ONNX Runtime has no native kernel for the "
-            "quantized format and dequantizes inside the matmul: you pay the unpacking "
-            "cost on every token and keep none of the arithmetic savings. Quantize here "
-            "to fit in memory, not to go faster."
+            "This is a property of *autoregressive decode*, not of quantized arithmetic: "
+            "ONNX Runtime unpacks the weights back to float inside each step, and a single "
+            "token cannot amortise unpacking a whole weight matrix. With a long prompt to "
+            "amortise over, the same artifacts often come out faster than the baseline. "
+            "What that means in practice: quantize here to fit in memory, not to speed up "
+            "generation."
         )
     if faster:
         best = max(faster, key=lambda r: r.tokens_per_second)
@@ -137,7 +139,8 @@ def console_report(card: ResultCard, errors: dict[str, str] | None = None) -> st
         f"{machine.ram_gb:.0f} GB RAM",
         f"  software {machine.os} {machine.os_release} · Python {machine.python} · "
         f"onnxruntime {machine.onnxruntime} · {machine.provider}",
-        f"  settings {machine.intra_op_threads} threads · {card.gen_tokens} generated tokens · "
+        f"  settings {machine.intra_op_threads} threads ({machine.thread_policy}) · "
+        f"{card.gen_tokens} generated tokens · "
         f"{card.warmup_runs} warmup + {measured} measured runs"
         + (f" · {card.eval_windows} perplexity windows" if card.eval_windows else ""),
         "",

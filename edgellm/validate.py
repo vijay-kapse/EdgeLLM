@@ -58,6 +58,7 @@ REQUIRED_MACHINE = {
     "onnxruntime",
     "provider",
     "intra_op_threads",
+    "thread_policy",
 }
 
 REQUIRED_ROW = {

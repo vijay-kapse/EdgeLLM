@@ -22,6 +22,14 @@ installed it prints a prefilled link instead, so you are never stuck.
   is comparable with everyone else's. Non-default runs are still accepted and
   listed — they just are not ranked, because a 64-token run and a 32-token run
   do not measure the same thing.
+- **Leave `--threads` alone** unless you are deliberately investigating it. The
+  default pins ONNX Runtime to your machine's *performance* cores, and the card
+  records how that was determined (`thread_policy`). This matters more than it
+  sounds: on a heterogeneous CPU one thread scheduled onto an efficiency core
+  gates the whole parallel region. Measured on an Apple M4 (4 performance + 6
+  efficiency), pinning all ten physical cores cost int8 66% of its throughput
+  and doubled run-to-run spread, while barely moving fp32. A card run across
+  both tiers is measuring something different from everyone else's.
 - **Interesting hardware especially welcome.** Raspberry Pi, old ThinkPads,
   Snapdragon laptops, bare-metal ARM servers, anything unusual. The point of the
   leaderboard is the *spread* across real machines, not the top of the list.

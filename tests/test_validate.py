@@ -50,7 +50,8 @@ def _card(**overrides):
             "python": "3.11.15",
             "onnxruntime": "1.27.0",
             "provider": "CPUExecutionProvider",
-            "intra_op_threads": 10,
+            "intra_op_threads": 4,
+            "thread_policy": "macos-perflevel0",
         },
         # 32 tokens / 1.6 s = 20 tok/s, so the derived check is satisfied.
         "rows": [_row("fp32"), _row("int8", tps=16.0, latency=2.0, ppl=25.0)],

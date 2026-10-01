@@ -78,6 +78,7 @@ def build_leaderboard(card_paths: list[Path]) -> dict[str, Any]:
                 "ram_gb": machine["ram_gb"],
                 "provider": machine["provider"],
                 "threads": machine["intra_op_threads"],
+                "thread_policy": machine.get("thread_policy", "unknown"),
                 "onnxruntime": machine["onnxruntime"],
                 "rows": card["rows"],
                 "speedups": _speedups(card["rows"]),
@@ -179,7 +180,8 @@ def render_leaderboard_markdown(board: dict[str, Any]) -> str:
             f"### {entry['cpu']} · {entry['os']} ({entry['arch']}){flag}",
             "",
             f"`{entry['model_id']}` · {entry['physical_cores']} physical cores · "
-            f"{entry['ram_gb']:.0f} GB RAM · {entry['threads']} threads · "
+            f"{entry['ram_gb']:.0f} GB RAM · "
+            f"{entry['threads']} threads ({entry['thread_policy']}) · "
             f"onnxruntime {entry['onnxruntime']} · {entry['provider']}{credit}",
             "",
             "| Precision | Size (MB) | tok/s | Speedup | Peak RAM (MB) | Perplexity |",

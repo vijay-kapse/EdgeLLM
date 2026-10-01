@@ -74,12 +74,15 @@ class OnnxLiteRunner(InferenceRunner):
         # always pinned to a concrete number and recorded in the result card.
         # Leaving it at ORT's default would store 0 ("decide for me"), which
         # makes two cards look identical while having run very differently.
-        # Physical cores, not logical: SMT siblings contend for the same vector
-        # units and consistently measure worse for GEMM-bound decode.
+        # The *fast* cores only, not every physical core. On a heterogeneous CPU
+        # one thread landing on an efficiency core gates the whole parallel
+        # region; see edgellm.card.performance_cores for the measurements.
         if intra_op_threads is None:
-            import psutil
+            from edgellm.card import performance_cores
 
-            intra_op_threads = psutil.cpu_count(logical=False) or psutil.cpu_count() or 1
+            intra_op_threads, self.thread_policy = performance_cores()
+        else:
+            self.thread_policy = "explicit"
 
         opts = ort.SessionOptions()
         opts.intra_op_num_threads = intra_op_threads

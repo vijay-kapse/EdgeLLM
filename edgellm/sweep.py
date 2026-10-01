@@ -24,7 +24,14 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from edgellm import __version__
-from edgellm.card import Fingerprint, PrecisionRow, ResultCard, fingerprint, now_utc_iso
+from edgellm.card import (
+    CARD_SCHEMA_VERSION,
+    Fingerprint,
+    PrecisionRow,
+    ResultCard,
+    fingerprint,
+    now_utc_iso,
+)
 from edgellm.config import GenerationConfig
 from edgellm.eval_lite import DEFAULT_EVAL_WINDOWS, EVAL_CORPUS_SHA256, evaluate_perplexity
 from edgellm.hub import DEFAULT_PRECISIONS, ModelResolutionError, resolve
@@ -141,7 +148,11 @@ def measure_one(precision: str, settings: SweepSettings) -> dict:
         measured_runs=settings.measured_runs,
     )
     runner.close()
-    return {"row": row.as_dict(), "threads": runner.intra_op_threads}
+    return {
+        "row": row.as_dict(),
+        "threads": runner.intra_op_threads,
+        "thread_policy": runner.thread_policy,
+    }
 
 
 # ---------------------------------------------------------------- orchestrator
@@ -191,6 +202,7 @@ def run_sweep(
     rows: list[PrecisionRow] = []
     errors: dict[str, str] = {}
     threads_used: int | None = settings.intra_op_threads
+    thread_policy = "explicit" if settings.intra_op_threads is not None else "unknown"
 
     for precision in settings.precisions:
         if on_progress:
@@ -215,6 +227,7 @@ def run_sweep(
 
             rows.append(PrecisionRow(**payload["row"]))
             threads_used = payload.get("threads", threads_used)
+            thread_policy = payload.get("thread_policy", thread_policy)
             if on_progress:
                 on_progress(precision, "ok")
 
@@ -230,9 +243,10 @@ def run_sweep(
     machine: Fingerprint = fingerprint(
         provider=settings.provider,
         intra_op_threads=threads_used or 0,
+        thread_policy=thread_policy,
     )
     card = ResultCard(
-        schema_version=1,
+        schema_version=CARD_SCHEMA_VERSION,
         model_id=settings.model_id,
         revision=settings.revision,
         created_utc=now_utc_iso(),

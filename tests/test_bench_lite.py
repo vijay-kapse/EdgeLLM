@@ -13,7 +13,13 @@ import math
 import numpy as np
 import pytest
 
-from edgellm.card import Fingerprint, PrecisionRow, ResultCard, slugify
+from edgellm.card import (
+    CARD_SCHEMA_VERSION,
+    Fingerprint,
+    PrecisionRow,
+    ResultCard,
+    slugify,
+)
 from edgellm.eval_lite import (
     EVAL_CORPUS_SHA256,
     _log_softmax_gather,
@@ -145,7 +151,8 @@ def _fingerprint(**kw) -> Fingerprint:
         python="3.11.15",
         onnxruntime="1.27.0",
         provider="CPUExecutionProvider",
-        intra_op_threads=10,
+        intra_op_threads=4,
+        thread_policy="macos-perflevel0",
     )
     base.update(kw)
     return Fingerprint(**base)
@@ -155,12 +162,13 @@ def test_fingerprint_carries_no_identifying_fields():
     """Cards are committed to a public repo; this is the privacy guarantee."""
     fields = set(_fingerprint().__dict__)
     forbidden = {"hostname", "user", "username", "mac", "ip", "serial", "machine_id", "path"}
+    assert "thread_policy" in fields  # recorded so cards stay comparable
     assert fields & forbidden == set()
 
 
 def _card(rows: list[PrecisionRow]) -> ResultCard:
     return ResultCard(
-        schema_version=1,
+        schema_version=CARD_SCHEMA_VERSION,
         model_id="HuggingFaceTB/SmolLM2-135M-Instruct",
         revision="main",
         created_utc="2026-10-01T00:00:00Z",
@@ -222,7 +230,10 @@ def test_verdict_calls_out_a_precision_that_is_slower_than_baseline():
     """The finding people most need and least expect must be stated outright."""
     findings = "\n".join(verdict(_card(_rows())))
     assert "slower than fp32" in findings
-    assert "fit in memory, not to go faster" in findings
+    assert "fit in memory, not to speed up generation" in findings
+    # The explanation must stay scoped to decode: quantized kernels are not
+    # inherently slow, and saying so was the imprecision this replaced.
+    assert "autoregressive decode" in findings
 
 
 def test_verdict_reports_the_fastest_precision():
@@ -286,3 +297,62 @@ def test_mismatched_tokenizer_vocab_raises_a_clear_error():
     """A stale tokenizer.json must not surface as a bare IndexError."""
     with pytest.raises(ValueError, match="does not match its ONNX graph"):
         evaluate_perplexity(_UniformRunner(16), _FakeTokenizer(600, vocab=999), windows=1)
+
+
+# ---------------------------------------------------- performance-core detection
+
+
+def test_performance_cores_returns_a_sane_count_and_policy():
+    """The thread default is the single biggest lever on the numbers."""
+    from edgellm.card import performance_cores
+
+    count, policy = performance_cores()
+    assert count >= 1
+    assert policy in {
+        "macos-perflevel0",
+        "linux-cpu-capacity",
+        "physical-cores",
+        "fallback",
+    }
+
+
+def test_performance_cores_never_exceeds_logical_cpus():
+    import psutil
+
+    from edgellm.card import performance_cores
+
+    count, _ = performance_cores()
+    assert count <= (psutil.cpu_count(logical=True) or count)
+
+
+def test_performance_cores_prefers_the_fast_tier_on_heterogeneous_cpus():
+    """On a big.LITTLE / Apple-Silicon host the count must be the fast tier only.
+
+    Pinning every physical core lets one thread on an efficiency core gate the
+    whole parallel region: measured on an M4 that cost int8 66% of its
+    throughput and doubled run-to-run spread.
+    """
+    import platform
+    import subprocess
+
+    from edgellm.card import performance_cores
+
+    if platform.system() != "Darwin":
+        pytest.skip("heterogeneous-tier detection is checked on the macOS host")
+
+    probe = subprocess.run(
+        ["sysctl", "-n", "hw.perflevel0.physicalcpu"], capture_output=True, text=True
+    )
+    if probe.returncode != 0 or not probe.stdout.strip().isdigit():
+        pytest.skip("uniform CPU — no performance tier to distinguish")
+
+    expected = int(probe.stdout.strip())
+    count, policy = performance_cores()
+    assert policy == "macos-perflevel0"
+    assert count == expected
+
+    import psutil
+
+    physical = psutil.cpu_count(logical=False) or expected
+    if physical > expected:
+        assert count < physical, "must not pin efficiency cores"

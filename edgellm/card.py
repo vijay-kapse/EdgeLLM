@@ -19,10 +19,11 @@ import re
 import subprocess
 from dataclasses import asdict, dataclass, field
 from datetime import datetime, timezone
+from pathlib import Path
 from typing import Any
 
 #: Bumped when the card layout changes in a way a validator must notice.
-CARD_SCHEMA_VERSION = 1
+CARD_SCHEMA_VERSION = 2
 
 
 def _cpu_model() -> str:
@@ -46,6 +47,64 @@ def _cpu_model() -> str:
     except (OSError, subprocess.SubprocessError):
         pass
     return platform.processor() or platform.machine() or "unknown"
+
+
+def performance_cores() -> tuple[int, str]:
+    """Count the machine's *fast* cores, and say how that was determined.
+
+    This matters far more than it looks. On a heterogeneous CPU — Apple Silicon,
+    ARM big.LITTLE, Intel hybrid — an ONNX Runtime parallel region ends on a
+    barrier, so one thread scheduled onto an efficiency core gates the whole
+    region. Measured on an M4 (4 performance + 6 efficiency), pinning all ten
+    physical cores cost int8 **66% of its throughput** (24.1 vs 40.0 tok/s) and
+    doubled run-to-run spread, while barely moving fp32: the quantized kernel is
+    compute-bound and waits on the slow thread, fp32 is bandwidth-bound and does
+    not. Defaulting to every physical core therefore understates quantized
+    performance and makes results unreproducible.
+
+    Returns ``(count, policy)`` so the card records which rule produced it.
+    """
+    system = platform.system()
+
+    if system == "Darwin":
+        # perflevel0 is the fastest tier; the key is absent on uniform chips.
+        try:
+            out = subprocess.run(
+                ["sysctl", "-n", "hw.perflevel0.physicalcpu"],
+                capture_output=True,
+                text=True,
+                timeout=5,
+            )
+            if out.returncode == 0 and out.stdout.strip().isdigit():
+                count = int(out.stdout.strip())
+                if count > 0:
+                    return count, "macos-perflevel0"
+        except (OSError, subprocess.SubprocessError):
+            pass
+
+    elif system == "Linux":
+        # ARM big.LITTLE exposes a per-cpu capacity; the fast tier is the max.
+        try:
+            caps: dict[int, int] = {}
+            for path in Path("/sys/devices/system/cpu").glob("cpu[0-9]*/cpu_capacity"):
+                try:
+                    caps[int(path.parent.name[3:])] = int(path.read_text().strip())
+                except (OSError, ValueError):
+                    continue
+            if caps:
+                peak = max(caps.values())
+                count = sum(1 for value in caps.values() if value == peak)
+                if 0 < count < len(caps):
+                    return count, "linux-cpu-capacity"
+        except OSError:
+            pass
+
+    try:
+        import psutil
+
+        return (psutil.cpu_count(logical=False) or psutil.cpu_count() or 1), "physical-cores"
+    except Exception:
+        return 1, "fallback"
 
 
 def _total_ram_gb() -> float:
@@ -79,13 +138,16 @@ class Fingerprint:
     onnxruntime: str
     provider: str
     intra_op_threads: int
+    thread_policy: str = "unknown"
 
     @property
     def slug(self) -> str:
         return f"{slugify(self.cpu, max_length=40)}-{slugify(self.os, max_length=10)}"
 
 
-def fingerprint(*, provider: str, intra_op_threads: int) -> Fingerprint:
+def fingerprint(
+    *, provider: str, intra_op_threads: int, thread_policy: str = "unknown"
+) -> Fingerprint:
     """Collect the host description. The only function in the project that reads the machine."""
     import onnxruntime as ort
     import psutil
@@ -102,6 +164,7 @@ def fingerprint(*, provider: str, intra_op_threads: int) -> Fingerprint:
         onnxruntime=ort.__version__,
         provider=provider,
         intra_op_threads=intra_op_threads,
+        thread_policy=thread_policy,
     )
 
 
