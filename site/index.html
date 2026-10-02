@@ -3,15 +3,15 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>edge-llm-bench — Find out what quantization actually costs on your hardware</title>
+    <title>quantcost — Find out what quantization actually costs on your hardware</title>
     <meta
       name="description"
       content="One command measures speed, size, memory and perplexity for fp32/int8/int4 on your own CPU. No PyTorch, no GPU. Then compare against every other machine on the public leaderboard."
     />
-    <meta property="og:title" content="edge-llm-bench — quantization, measured on your own hardware" />
+    <meta property="og:title" content="quantcost — quantization, measured on your own hardware" />
     <meta
       property="og:description"
-      content="On an Apple M4, int8 and int4 are 3-4x smaller and 3-5x SLOWER than fp32. Whether quantization pays off depends entirely on your hardware. pip install edge-llm-bench and find out."
+      content="On an Apple M4, int8 generates tokens at 0.47x the fp32 rate while being 4x smaller - the same 0.47x on two different models. Smaller: yes. Faster: no. pip install quantcost and measure your own hardware."
     />
     <meta property="og:type" content="website" />
     <meta name="twitter:card" content="summary_large_image" />
@@ -799,7 +799,7 @@
       <div class="wrap nav-inner">
         <a class="brand" href="#top">
           <span class="chip">EL</span>
-          edge-llm-bench
+          quantcost
         </a>
         <nav class="nav-links">
           <a class="hide-sm" href="#leaderboard">Leaderboard</a>
@@ -817,7 +817,7 @@
       <div class="hero">
         <div class="wrap hero-grid">
           <div>
-            <span class="eyebrow"><span class="dot"></span> pip install edge-llm-bench · MIT</span>
+            <span class="eyebrow"><span class="dot"></span> pip install quantcost · MIT</span>
             <h1>Quantization makes it <span class="grad">4× smaller</span>. Whether it's <span class="grad">faster</span> depends on your hardware.</h1>
             <p class="lede">
               On an Apple M4, int8 generates tokens at <strong>0.47× the fp32 rate</strong> while
@@ -834,10 +834,10 @@
 
           <div class="term mono">
             <div class="term-bar">
-              <i></i><i></i><i></i><span>edge-llm-bench — on an Apple M4</span>
+              <i></i><i></i><i></i><span>quantcost — on an Apple M4</span>
             </div>
-            <pre><span class="c-prompt">$</span> pip install edge-llm-bench
-<span class="c-prompt">$</span> edge-llm-bench run
+            <pre><span class="c-prompt">$</span> pip install quantcost
+<span class="c-prompt">$</span> quantcost run
 
 <span class="c-cmt"># fp32 / int8 / int4, measured on this machine</span>
 <span class="c-out">  fp32  515 MB  <span class="c-hi">83.7 tok/s</span>  baseline  ppl 23.1</span>
@@ -913,9 +913,9 @@
 
           <div class="term mono" style="margin-top: 28px">
             <div class="term-bar"><i></i><i></i><i></i><span>add your machine</span></div>
-            <pre><span class="c-prompt">$</span> pip install edge-llm-bench
-<span class="c-prompt">$</span> edge-llm-bench run
-<span class="c-prompt">$</span> edge-llm-bench submit     <span class="c-cmt"># opens the PR for you</span></pre>
+            <pre><span class="c-prompt">$</span> pip install quantcost
+<span class="c-prompt">$</span> quantcost run
+<span class="c-prompt">$</span> quantcost submit     <span class="c-cmt"># opens the PR for you</span></pre>
           </div>
         </div>
       </section>
@@ -1154,7 +1154,7 @@
             <p>
               This is the pipeline that <em>produces</em> quantized artifacts, behind the
               <span class="inline-code">.[quantize]</span> extra. Benchmarking does not need any of
-              it — <span class="inline-code">edge-llm-bench run</span> consumes ONNX already
+              it — <span class="inline-code">quantcost run</span> consumes ONNX already
               published on the Hub, which is what keeps that install torch-free. Reach for these
               commands when you want to quantize a model yourself.
             </p>
@@ -1386,7 +1386,7 @@
               <p>
                 Every latency, throughput, memory, size and accuracy figure on this page came out of
                 an actual run on real hardware. Leaderboard rows are reproducible with
-                <span class="inline-code">edge-llm-bench run</span>; the Qwen deep dive with
+                <span class="inline-code">quantcost run</span>; the Qwen deep dive with
                 <span class="inline-code">bash scripts/run_all.sh</span>. The one stage needing
                 hardware that is not wired up — profiling on a Qualcomm Snapdragon NPU — is left out
                 of the table rather than estimated.
@@ -1420,7 +1420,7 @@
                   no PyTorch, no GPU, about ten seconds.
                 </li>
                 <li>
-                  <span class="inline-code">edge-llm-bench models -m &lt;repo&gt;</span> lists which
+                  <span class="inline-code">quantcost models -m &lt;repo&gt;</span> lists which
                   precisions a model actually publishes before anything downloads.
                 </li>
                 <li>
@@ -1438,12 +1438,12 @@
             <div class="term mono">
               <div class="term-bar"><i></i><i></i><i></i><span>zsh</span></div>
               <pre><span class="c-cmt"># 1 · benchmark your own machine</span>
-<span class="c-prompt">$</span> pip install edge-llm-bench
-<span class="c-prompt">$</span> edge-llm-bench run
-<span class="c-prompt">$</span> edge-llm-bench submit     <span class="c-cmt"># opens the PR for you</span>
+<span class="c-prompt">$</span> pip install quantcost
+<span class="c-prompt">$</span> quantcost run
+<span class="c-prompt">$</span> quantcost submit     <span class="c-cmt"># opens the PR for you</span>
 
 <span class="c-cmt"># 2 · try another model</span>
-<span class="c-prompt">$</span> edge-llm-bench run -m <span class="c-hi">onnx-community/Qwen2.5-0.5B-Instruct</span>
+<span class="c-prompt">$</span> quantcost run -m <span class="c-hi">onnx-community/Qwen2.5-0.5B-Instruct</span>
 
 <span class="c-cmt"># 3 · author your own quantized artifacts (heavy extra)</span>
 <span class="c-prompt">$</span> pip install -e <span class="c-hi">".[quantize]"</span>
@@ -1459,8 +1459,8 @@
         <div class="wrap">
           <h2>Run it on your machine</h2>
           <p>
-            <span class="inline-code">pip install edge-llm-bench</span> — about ten seconds, no
-            PyTorch, no GPU. Then <span class="inline-code">edge-llm-bench submit</span> puts your
+            <span class="inline-code">pip install quantcost</span> — about ten seconds, no
+            PyTorch, no GPU. Then <span class="inline-code">quantcost submit</span> puts your
             hardware on the leaderboard. The quantization pipeline, C++ harness, SIMD kernel and
             Android app are all in the same MIT-licensed repository.
           </p>
@@ -1485,7 +1485,7 @@
     </footer>
 
     <script>
-      // The leaderboard is generated data: `edge-llm-bench leaderboard` writes
+      // The leaderboard is generated data: `quantcost leaderboard` writes
       // leaderboard.json, and a merge to main rebuilds it. Nothing here is hand-authored,
       // so the page cannot drift from the committed cards.
       (async function renderLeaderboard() {

@@ -1,5 +1,5 @@
 <!--
-Submitting benchmark results? `edge-llm-bench submit` fills this in for you.
+Submitting benchmark results? `quantcost submit` fills this in for you.
 If you ran it, you can delete this template — your numbers are already below.
 
 Submitting a code change instead? Delete this and describe the change.
@@ -11,11 +11,11 @@ Submitting a code change instead? Delete this and describe the change.
 - **OS**:
 - **Model**:
 
-<!-- Paste the table `edge-llm-bench run` printed, or just leave the card file. -->
+<!-- Paste the table `quantcost run` printed, or just leave the card file. -->
 
 ### Checklist
 
-- [ ] The card was produced by `edge-llm-bench run` (not edited by hand)
+- [ ] The card was produced by `quantcost run` (not edited by hand)
 - [ ] The machine was reasonably idle — no "varied by more than 15%" warning
 - [ ] `results/community/` is the only directory this PR touches
 

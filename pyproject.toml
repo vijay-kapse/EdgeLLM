@@ -3,9 +3,9 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [project]
-name = "edge-llm-bench"
+name = "quantcost"
 version = "0.2.0"
-description = "Benchmark quantized LLMs on your own hardware: speed, size and quality, measured not estimated."
+description = "Measure what quantization actually costs on your own hardware: speed, size, memory and quality."
 readme = "README.md"
 license = { text = "MIT" }
 requires-python = ">=3.10"
@@ -66,8 +66,10 @@ Leaderboard = "https://github.com/vijay-kapse/EdgeLLM/blob/main/results/LEADERBO
 Issues = "https://github.com/vijay-kapse/EdgeLLM/issues"
 
 [project.scripts]
-edge-llm-bench = "edgellm.cli:main"
-edgellm = "edgellm.cli:main"      # retained: the pre-0.2 command name
+quantcost = "edgellm.cli:main"
+# The authoring path (export/quantize/C++/NPU) is still EdgeLLM, and keeps its
+# own command name. Both entry points are the same CLI.
+edgellm = "edgellm.cli:main"
 
 [tool.hatch.build.targets.wheel]
 packages = ["edgellm"]

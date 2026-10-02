@@ -3,9 +3,14 @@ name: Release to PyPI
 # Publishes on a version tag. Uses PyPI Trusted Publishing (OIDC), so there is no
 # API token stored in this repository at all.
 #
-# One-time setup on PyPI, before the first tag:
-#   https://pypi.org/manage/project/edge-llm-bench/settings/publishing/
-#   owner: vijay-kapse   repo: EdgeLLM   workflow: release.yml   environment: pypi
+# One-time setup on PyPI, before the first tag. The project does not exist yet,
+# so this is the *pending* publisher form, not the per-project settings page:
+#   https://pypi.org/manage/account/publishing/
+#     PyPI Project Name: quantcost
+#     Owner:             vijay-kapse
+#     Repository name:   EdgeLLM        (the repo, not the package)
+#     Workflow name:     release.yml
+#     Environment name:  pypi           (required - this job declares it)
 #
 # Then:  git tag v0.2.0 && git push origin v0.2.0
 on:
@@ -47,7 +52,7 @@ jobs:
           import glob, os, re
           tag = os.environ["GITHUB_REF_NAME"].lstrip("v")
           wheel = os.path.basename(sorted(glob.glob("dist/*.whl"))[-1])
-          version = re.match(r"edge_llm_bench-([^-]+)-", wheel).group(1)
+          version = re.match(r"quantcost-([^-]+)-", wheel).group(1)
           assert version == tag, f"tag {tag!r} does not match built version {version!r}"
           print(f"tag and version agree: {version}")
           PY
@@ -56,7 +61,7 @@ jobs:
         run: |
           python -m venv /tmp/smoke
           /tmp/smoke/bin/pip install --quiet dist/*.whl
-          /tmp/smoke/bin/edge-llm-bench --help > /dev/null
+          /tmp/smoke/bin/quantcost --help > /dev/null
           /tmp/smoke/bin/python -c "
           import sys, edgellm.cli
           heavy = {m.split('.')[0] for m in sys.modules} & {'torch', 'transformers'}

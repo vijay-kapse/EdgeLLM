@@ -5,9 +5,9 @@
 This is the most useful thing you can contribute, and it takes about two minutes.
 
 ```bash
-pip install edge-llm-bench
-edge-llm-bench run
-edge-llm-bench submit
+pip install quantcost
+quantcost run
+quantcost submit
 ```
 
 `submit` validates the card, forks this repo, commits your result and opens the
@@ -18,7 +18,7 @@ installed it prints a prefilled link instead, so you are never stuck.
 
 - **An idle machine.** Close the browser and the build you have running. If the
   report prints a *"varied by more than 15%"* warning, re-run before submitting.
-- **Default settings.** `edge-llm-bench run` with no flags produces a card that
+- **Default settings.** `quantcost run` with no flags produces a card that
   is comparable with everyone else's. Non-default runs are still accepted and
   listed — they just are not ranked, because a 64-token run and a 32-token run
   do not measure the same thing.

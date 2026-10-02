@@ -70,4 +70,4 @@ jobs:
       - name: Confirm the leaderboard still builds from these cards
         # Only that it *builds*. A contributor's PR adds a card and nothing else;
         # regenerating LEADERBOARD.md is the merge job's responsibility, not theirs.
-        run: edge-llm-bench leaderboard --out /tmp/leaderboard.md --json-out /tmp/leaderboard.json
+        run: quantcost leaderboard --out /tmp/leaderboard.md --json-out /tmp/leaderboard.json

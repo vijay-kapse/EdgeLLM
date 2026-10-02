@@ -1,4 +1,4 @@
-"""edge-llm-bench: measure what quantization actually costs on your own hardware."""
+"""quantcost: measure what quantization actually costs on your own hardware."""
 
 from __future__ import annotations
 

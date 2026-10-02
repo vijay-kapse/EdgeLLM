@@ -119,7 +119,7 @@ def validate_card(path: Path) -> ValidationReport:
     if card.get("schema_version") != CARD_SCHEMA_VERSION:
         errors.append(
             f"schema_version is {card.get('schema_version')!r}, expected {CARD_SCHEMA_VERSION}. "
-            "Re-run with the current edge-llm-bench."
+            "Re-run with the current quantcost."
         )
 
     machine = card.get("machine")

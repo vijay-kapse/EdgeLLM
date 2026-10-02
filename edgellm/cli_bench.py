@@ -121,7 +121,7 @@ def register(app: typer.Typer) -> None:
 
         path = save_card(card, out)
         typer.echo(f"Result card: {path}")
-        typer.echo("Share it on the public leaderboard with:  edge-llm-bench submit")
+        typer.echo("Share it on the public leaderboard with:  quantcost submit")
 
     @app.command()
     def models(
@@ -188,9 +188,7 @@ def register(app: typer.Typer) -> None:
         if target is None:
             cards = sorted(community.glob("*.json"), key=lambda p: p.stat().st_mtime)
             if not cards:
-                typer.echo(
-                    f"No result card in {community}. Run `edge-llm-bench run` first.", err=True
-                )
+                typer.echo(f"No result card in {community}. Run `quantcost run` first.", err=True)
                 raise typer.Exit(1)
             target = cards[-1]
 

@@ -36,7 +36,7 @@ jobs:
           pip install -e .
 
       - name: Rebuild from every submitted card
-        run: edge-llm-bench leaderboard
+        run: quantcost leaderboard
 
       - name: Commit if it changed
         run: |

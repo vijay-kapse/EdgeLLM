@@ -1,15 +1,15 @@
-# edge-llm-bench
+# quantcost
 
 **Find out what quantization actually costs you — on your machine, not someone else's.**
 
 [![CI](https://github.com/vijay-kapse/EdgeLLM/actions/workflows/ci.yml/badge.svg)](https://github.com/vijay-kapse/EdgeLLM/actions/workflows/ci.yml)
-[![PyPI](https://img.shields.io/pypi/v/edge-llm-bench)](https://pypi.org/project/edge-llm-bench/)
-[![Python](https://img.shields.io/pypi/pyversions/edge-llm-bench)](https://pypi.org/project/edge-llm-bench/)
+[![PyPI](https://img.shields.io/pypi/v/quantcost)](https://pypi.org/project/quantcost/)
+[![Python](https://img.shields.io/pypi/pyversions/quantcost)](https://pypi.org/project/quantcost/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 
 ```bash
-pip install edge-llm-bench
-edge-llm-bench run
+pip install quantcost
+quantcost run
 ```
 
 That's it. Two to three minutes later you get speed, size, memory and *quality*
@@ -25,7 +25,7 @@ seconds.
 ## What quantization actually costs
 
 "Quantize it, it'll be smaller and faster" is half right. Two models, one Apple
-M4, measured with `edge-llm-bench run` at its defaults:
+M4, measured with `quantcost run` at its defaults:
 
 **SmolLM2-135M-Instruct**
 
@@ -79,7 +79,7 @@ Pin threads to your machine's **performance** cores, not every physical core.
 On this M4 (4 performance + 6 efficiency) pinning all ten cost int8 66% of its
 throughput — 24.1 vs 40.0 tok/s — and doubled run-to-run spread, because an ONNX
 Runtime parallel region ends on a barrier and one thread on an efficiency core
-gates the whole thing. `edge-llm-bench` does this by default and records how it
+gates the whole thing. `quantcost` does this by default and records how it
 decided in every card. It is the single easiest way to publish a wrong number,
 and it is how the first draft of this README got the figures above wrong.
 
@@ -93,8 +93,8 @@ worth finding out.
 ## Add your machine
 
 ```bash
-edge-llm-bench run
-edge-llm-bench submit
+quantcost run
+quantcost submit
 ```
 
 `submit` validates your result, forks this repo, commits the card and opens the
@@ -113,19 +113,19 @@ fingerprint is one auditable function).
 
 ```bash
 # A different model — anything with ONNX on the Hub works
-edge-llm-bench run --model onnx-community/Qwen2.5-0.5B-Instruct
+quantcost run --model onnx-community/Qwen2.5-0.5B-Instruct
 
 # Which precisions does a model actually publish?
-edge-llm-bench models --model onnx-community/Qwen2.5-0.5B-Instruct
+quantcost models --model onnx-community/Qwen2.5-0.5B-Instruct
 
 # Speed and size only; skips the perplexity pass and is much faster
-edge-llm-bench run --precisions fp32,int8 --skip-perplexity
+quantcost run --precisions fp32,int8 --skip-perplexity
 
 # Pin threads to compare against a specific configuration
-edge-llm-bench run --threads 4
+quantcost run --threads 4
 
 # Rebuild the leaderboard from every submitted card
-edge-llm-bench leaderboard
+quantcost leaderboard
 ```
 
 Any Hub repo following the `onnx-community` / `transformers.js` layout works
