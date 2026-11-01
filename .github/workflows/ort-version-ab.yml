@@ -1,0 +1,95 @@
+name: ORT version A/B
+
+# Does int8 decode still lose to fp32 on newer ONNX Runtime releases?
+# Runs the same quantcost sweep under each ORT version on the same runner,
+# interleaved (A B A B ...) so runner noise hits every version equally.
+
+on:
+  workflow_dispatch:
+    inputs:
+      versions:
+        description: "Space-separated onnxruntime versions"
+        default: "1.27.0 1.31.1"
+      model:
+        description: "Hub model id"
+        default: "HuggingFaceTB/SmolLM2-135M-Instruct"
+      rounds:
+        description: "Interleaved rounds per version"
+        default: "3"
+
+jobs:
+  ab:
+    name: ${{ matrix.runner }}
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        runner: [macos-14, ubuntu-24.04-arm, ubuntu-24.04]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Record the CPU
+        run: |
+          if [ "$(uname)" = "Darwin" ]; then
+            sysctl -n machdep.cpu.brand_string hw.ncpu hw.perflevel0.physicalcpu || true
+            sysctl hw.optional | grep -iE "i8mm|dotprod|bf16|sme" || true
+          else
+            lscpu
+            grep -m1 -o -wE "sve2?|i8mm|asimddp|avx512_vnni|avx_vnni|avx2" /proc/cpuinfo | sort -u || true
+            grep -m1 Features /proc/cpuinfo || grep -m1 flags /proc/cpuinfo
+          fi
+
+      - name: One venv per ORT version
+        run: |
+          for v in ${{ inputs.versions }}; do
+            python -m venv ".venv-$v"
+            ".venv-$v/bin/pip" install -q --upgrade pip
+            ".venv-$v/bin/pip" install -q -e . "onnxruntime==$v"
+            ".venv-$v/bin/python" -c "import onnxruntime as o; print('ORT', o.__version__)"
+          done
+
+      - name: Interleaved sweeps
+        run: |
+          for r in $(seq 1 ${{ inputs.rounds }}); do
+            for v in ${{ inputs.versions }}; do
+              echo "::group::round $r  ORT $v"
+              ".venv-$v/bin/quantcost" run -m "${{ inputs.model }}" --skip-perplexity --out "cards/$v/r$r"
+              echo "::endgroup::"
+            done
+          done
+
+      - name: Summary
+        if: always()
+        run: |
+          python - <<'PY' | tee -a "$GITHUB_STEP_SUMMARY"
+          import json, glob, os, statistics as st, collections
+          by = collections.defaultdict(lambda: collections.defaultdict(list))
+          cpu = threads = ""
+          for f in sorted(glob.glob("cards/*/r*/*.json")):
+              c = json.load(open(f)); v = c["machine"]["onnxruntime"]
+              cpu = c["machine"]["cpu"]; threads = c["machine"]["intra_op_threads"]
+              for row in c["rows"]:
+                  by[v][row["precision"]].append(row["tokens_per_second"])
+          print(f"### {os.environ['RUNNER_NAME_LABEL']} · {cpu} · {threads} threads\n")
+          print("| ORT | precision | tok/s per round | median | vs fp32 |")
+          print("|---|---|---|---|---|")
+          for v in sorted(by):
+              base = st.median(by[v]["fp32"]) if by[v].get("fp32") else None
+              for p, xs in by[v].items():
+                  m = st.median(xs)
+                  rel = f"{m / base:.2f}x" if base else "-"
+                  print(f"| {v} | {p} | {', '.join(f'{x:.1f}' for x in xs)} | {m:.1f} | {rel} |")
+          PY
+        env:
+          RUNNER_NAME_LABEL: ${{ matrix.runner }}
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: cards-${{ matrix.runner }}
+          path: cards/
