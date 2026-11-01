@@ -61,7 +61,9 @@ jobs:
       - name: Unit tests
         working-directory: ort/build/Release
         continue-on-error: true
-        run: set -o pipefail; ./onnxruntime_test_all --gtest_filter='${{ inputs.gtest_filter }}' 2>&1 | tail -60
+        run: |
+          set -o pipefail
+          ./onnxruntime_test_all --gtest_filter='${{ inputs.gtest_filter }}' 2>&1 | tee "$GITHUB_WORKSPACE/gtest.log" | grep -E '^\[ +(OK|FAILED|PASSED) +\]|tests ran|Failure|Expected|Which is|Missing'
 
       - name: Install wheel
         run: |
@@ -82,3 +84,4 @@ jobs:
           path: |
             ort/build/Release/dist/*.whl
             profiles/
+            gtest.log
