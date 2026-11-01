@@ -22,14 +22,26 @@ PROMPTS = [
 ]
 
 
-def logits(model: str, precision: str, out: Path) -> None:
+def logits(model: str, precision: str, out: Path, config: dict[str, str]) -> None:
     import onnxruntime as ort
 
     from edgellm.hub import resolve
     from edgellm.ort_lite import OnnxLiteRunner
 
-    resolved = resolve(model, precision)
-    runner = OnnxLiteRunner(str(resolved.onnx_path), str(resolved.tokenizer_path))
+    real_session = ort.InferenceSession
+
+    def configured_session(path, opts=None, **kw):
+        opts = opts or ort.SessionOptions()
+        for key, value in config.items():
+            opts.add_session_config_entry(key, value)
+        return real_session(path, opts, **kw)
+
+    ort.InferenceSession = configured_session
+    try:
+        resolved = resolve(model, precision)
+        runner = OnnxLiteRunner(str(resolved.onnx_path), str(resolved.tokenizer_path))
+    finally:
+        ort.InferenceSession = real_session
     arrays = {}
     for i, prompt in enumerate(PROMPTS):
         ids = np.asarray([runner.tokenizer.encode(prompt).ids], dtype=np.int64)
@@ -87,6 +99,7 @@ def main() -> int:
     p.add_argument("--model", default="HuggingFaceTB/SmolLM2-135M-Instruct")
     p.add_argument("--precision", default="int8")
     p.add_argument("--out", type=Path, required=True)
+    p.add_argument("--config", action="append", default=[], help="Session config key=value.")
     c = sub.add_parser("compare")
     c.add_argument("a", type=Path)
     c.add_argument("b", type=Path)
@@ -95,7 +108,7 @@ def main() -> int:
     ld.add_argument("filename")
     args = ap.parse_args()
     if args.cmd == "logits":
-        logits(args.model, args.precision, args.out)
+        logits(args.model, args.precision, args.out, dict(c.split("=", 1) for c in args.config))
         return 0
     if args.cmd == "compare":
         return compare(args.a, args.b)

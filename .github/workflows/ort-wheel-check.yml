@@ -71,7 +71,29 @@ jobs:
             echo "### $m int8 logits, ref vs new" | tee -a "$GITHUB_STEP_SUMMARY"
             .venv-new/bin/python scripts/check_fusion.py compare "logits-$tag-ref.npz" "logits-$tag-new.npz" \
               | tee -a "$GITHUB_STEP_SUMMARY"
+            .venv-new/bin/python scripts/check_fusion.py logits --model "$m" --out "logits-$tag-new-acc1.npz" \
+              --config session.qdq_matmulnbits_accuracy_level=1
+            echo "### $m int8 logits, ref vs new with accuracy_level=1" | tee -a "$GITHUB_STEP_SUMMARY"
+            .venv-new/bin/python scripts/check_fusion.py compare "logits-$tag-ref.npz" "logits-$tag-new-acc1.npz" \
+              | tee -a "$GITHUB_STEP_SUMMARY"
           done
+
+      - name: Perplexity
+        run: |
+          for m in ${{ inputs.models }}; do
+            tag=$(echo "$m" | tr '/' '_')
+            .venv-ref/bin/quantcost run -m "$m" --precisions fp32,int8 --out "cards/ref/$tag" > /dev/null
+            .venv-new/bin/quantcost run -m "$m" --precisions int8 --out "cards/new/$tag" > /dev/null
+          done
+          python - <<'PY' | tee -a "$GITHUB_STEP_SUMMARY"
+          import glob, json
+          print("| model | ORT | precision | perplexity | tok/s |")
+          print("|---|---|---|---|---|")
+          for f in sorted(glob.glob("cards/*/*/*.json")):
+              c = json.load(open(f))
+              for r in c["rows"]:
+                  print(f"| {c['model_id']} | {c['machine']['onnxruntime']} | {r['precision']} | {r['perplexity']} | {r['tokens_per_second']} |")
+          PY
 
       - name: Decode speed
         run: |
@@ -80,6 +102,9 @@ jobs:
               ".venv-$env/bin/python" scripts/profile_ops.py --model "$m" --precisions fp32,int8 \
                 --out "profiles/$env/$(echo "$m" | tr '/' '_')" | tee -a "$GITHUB_STEP_SUMMARY"
             done
+            .venv-new/bin/python scripts/profile_ops.py --model "$m" --precisions int8 \
+              --config session.qdq_matmulnbits_accuracy_level=1 \
+              --out "profiles/new-acc1/$(echo "$m" | tr '/' '_')" | tee -a "$GITHUB_STEP_SUMMARY"
           done
 
       - uses: actions/upload-artifact@v4
@@ -89,3 +114,4 @@ jobs:
           path: |
             profiles/**/summary.json
             logits-*.npz
+            cards/
