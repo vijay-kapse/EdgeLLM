@@ -1,0 +1,91 @@
+name: ORT wheel check
+
+# Validate an ONNX Runtime wheel built by "ORT build experiment" against a released
+# wheel: same logits, issue #28306 models still load, and decode speed.
+
+on:
+  workflow_dispatch:
+    inputs:
+      build_run_id:
+        description: "Run id of the ORT build experiment that produced the wheel"
+        required: true
+      reference_version:
+        description: "Released onnxruntime to compare against"
+        default: "1.31.1"
+      models:
+        description: "Space-separated Hub model ids"
+        default: "HuggingFaceTB/SmolLM2-135M-Instruct onnx-community/Qwen2.5-0.5B-Instruct"
+      runner:
+        description: "Runner label (must match the wheel's platform)"
+        default: "ubuntu-24.04-arm"
+
+permissions:
+  actions: read
+  contents: read
+
+jobs:
+  check:
+    runs-on: ${{ inputs.runner }}
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: ort-experiment
+          run-id: ${{ inputs.build_run_id }}
+          github-token: ${{ github.token }}
+          path: artifact
+
+      - name: Two environments
+        run: |
+          for env in ref new; do
+            python -m venv ".venv-$env"
+            ".venv-$env/bin/pip" install -q --upgrade pip
+            ".venv-$env/bin/pip" install -q -e . onnx
+          done
+          .venv-ref/bin/pip install -q "onnxruntime==${{ inputs.reference_version }}"
+          .venv-new/bin/pip install -q --force-reinstall --no-deps $(find artifact -name '*.whl')
+          for env in ref new; do ".venv-$env/bin/python" -c "import onnxruntime as o; print('$env', o.__version__)"; done
+
+      - name: Issue 28306 models still load
+        run: |
+          for env in ref new; do
+            for f in onnx/decoder_model_merged_uint8.onnx onnx/decoder_model_merged_quantized.onnx; do
+              ".venv-$env/bin/python" scripts/check_fusion.py load onnx-community/whisper-tiny "$f" \
+                | tee -a "$GITHUB_STEP_SUMMARY"
+            done
+          done
+
+      - name: Same logits
+        run: |
+          for m in ${{ inputs.models }}; do
+            tag=$(echo "$m" | tr '/' '_')
+            for env in ref new; do
+              ".venv-$env/bin/python" scripts/check_fusion.py logits --model "$m" --out "logits-$tag-$env.npz"
+            done
+            echo "### $m int8 logits, ref vs new" | tee -a "$GITHUB_STEP_SUMMARY"
+            .venv-new/bin/python scripts/check_fusion.py compare "logits-$tag-ref.npz" "logits-$tag-new.npz" \
+              | tee -a "$GITHUB_STEP_SUMMARY"
+          done
+
+      - name: Decode speed
+        run: |
+          for m in ${{ inputs.models }}; do
+            for env in ref new; do
+              ".venv-$env/bin/python" scripts/profile_ops.py --model "$m" --precisions fp32,int8 \
+                --out "profiles/$env/$(echo "$m" | tr '/' '_')" | tee -a "$GITHUB_STEP_SUMMARY"
+            done
+          done
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: wheel-check
+          path: |
+            profiles/**/summary.json
+            logits-*.npz
