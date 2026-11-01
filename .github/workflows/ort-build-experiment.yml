@@ -1,0 +1,84 @@
+name: ORT build experiment
+
+# Build ONNX Runtime from a branch, run a gtest filter, then measure quantcost's
+# decode loop on the built wheel. Used to test MLAS/optimizer changes on ARM.
+
+on:
+  workflow_dispatch:
+    inputs:
+      ort_repo:
+        description: "ONNX Runtime repo"
+        default: "vijay-kapse/onnxruntime"
+      ort_ref:
+        description: "Branch or commit"
+        default: "exp/tied-dq-unguarded"
+      gtest_filter:
+        description: "onnxruntime_test_all gtest filter"
+        default: "*MatMulNBits*"
+      runner:
+        description: "Runner label"
+        default: "ubuntu-24.04-arm"
+
+jobs:
+  build:
+    runs-on: ${{ inputs.runner }}
+    timeout-minutes: 360
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/checkout@v4
+        with:
+          repository: ${{ inputs.ort_repo }}
+          ref: ${{ inputs.ort_ref }}
+          path: ort
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Tools
+        run: |
+          sudo apt-get update -q && sudo apt-get install -y -q ninja-build ccache
+          pip install -q numpy packaging wheel setuptools sympy flatbuffers protobuf onnx
+
+      - uses: actions/cache@v4
+        with:
+          path: ~/.cache/ccache
+          key: ccache-${{ inputs.runner }}-${{ github.run_id }}
+          restore-keys: ccache-${{ inputs.runner }}-
+
+      - name: Build
+        working-directory: ort
+        env:
+          CCACHE_DIR: /home/runner/.cache/ccache
+          CCACHE_MAXSIZE: 4G
+        run: |
+          python tools/ci_build/build.py --build_dir build --config Release --parallel \
+            --build_wheel --skip_tests --compile_no_warning_as_error --use_cache \
+            --cmake_generator Ninja --skip_submodule_sync
+          ccache -s || true
+
+      - name: Unit tests
+        working-directory: ort/build/Release
+        continue-on-error: true
+        run: set -o pipefail; ./onnxruntime_test_all --gtest_filter='${{ inputs.gtest_filter }}' 2>&1 | tail -60
+
+      - name: Install wheel
+        run: |
+          pip install -q ort/build/Release/dist/*.whl
+          pip install -q --no-deps -e .
+          pip install -q tokenizers huggingface_hub typer pyyaml psutil numpy
+          python -c "import onnxruntime as o; print(o.__version__, o.__file__)"
+
+      - name: Decode profile
+        run: |
+          python scripts/profile_ops.py --precisions fp32,int8 --out profiles \
+            | tee -a "$GITHUB_STEP_SUMMARY"
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: ort-experiment
+          path: |
+            ort/build/Release/dist/*.whl
+            profiles/
