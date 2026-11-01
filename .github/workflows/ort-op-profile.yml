@@ -15,6 +15,9 @@ on:
       precisions:
         description: "Comma-separated precisions"
         default: "fp32,int8,q4"
+      configs:
+        description: "Session config sets separated by |; each set is space-separated key=value, or 'default'"
+        default: "default"
 
 jobs:
   profile:
@@ -38,10 +41,21 @@ jobs:
           pip install -q -e . "onnxruntime==${{ inputs.ort_version }}"
 
       - name: Profile
+        env:
+          CONFIGS: ${{ inputs.configs }}
         run: |
-          python scripts/profile_ops.py --model "${{ inputs.model }}" \
-            --precisions "${{ inputs.precisions }}" --out profiles \
-            | tee -a "$GITHUB_STEP_SUMMARY"
+          i=0
+          IFS='|' read -ra SETS <<< "$CONFIGS"
+          for set in "${SETS[@]}"; do
+            i=$((i + 1))
+            flags=()
+            for kv in $set; do
+              [ "$kv" = "default" ] || flags+=(--config "$kv")
+            done
+            python scripts/profile_ops.py --model "${{ inputs.model }}" \
+              --precisions "${{ inputs.precisions }}" --out "profiles/$i" "${flags[@]}" \
+              | tee -a "$GITHUB_STEP_SUMMARY"
+          done
 
       - uses: actions/upload-artifact@v4
         if: always()

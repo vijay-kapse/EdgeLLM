@@ -17,7 +17,9 @@ import json
 from pathlib import Path
 
 
-def profile(model: str, precision: str, gen_tokens: int, runs: int, out: Path) -> dict:
+def profile(
+    model: str, precision: str, gen_tokens: int, runs: int, out: Path, config: dict[str, str]
+) -> dict:
     import onnxruntime as ort
 
     from edgellm.config import GenerationConfig
@@ -31,6 +33,8 @@ def profile(model: str, precision: str, gen_tokens: int, runs: int, out: Path) -
         opts = opts or ort.SessionOptions()
         opts.enable_profiling = True
         opts.profile_file_prefix = str(out / f"ort-{precision}")
+        for key, value in config.items():
+            opts.add_session_config_entry(key, value)
         return real_session(path, opts, **kw)
 
     ort.InferenceSession = profiled_session
@@ -72,6 +76,7 @@ def profile(model: str, precision: str, gen_tokens: int, runs: int, out: Path) -
     decode_steps = runs * (gen_tokens - 1)
     return {
         "precision": precision,
+        "config": config,
         "ort": ort.__version__,
         "threads": runner.intra_op_threads,
         "decode_steps": decode_steps,
@@ -92,17 +97,22 @@ def main() -> None:
     ap.add_argument("--gen-tokens", type=int, default=32)
     ap.add_argument("--runs", type=int, default=3)
     ap.add_argument("--out", type=Path, default=Path("profiles"))
+    ap.add_argument(
+        "--config", action="append", default=[], help="Session config entry key=value (repeatable)."
+    )
     args = ap.parse_args()
     args.out.mkdir(parents=True, exist_ok=True)
+    config = dict(c.split("=", 1) for c in args.config)
 
     results = [
-        profile(args.model, p, args.gen_tokens, args.runs, args.out)
+        profile(args.model, p, args.gen_tokens, args.runs, args.out, config)
         for p in args.precisions.split(",")
     ]
     (args.out / "summary.json").write_text(json.dumps(results, indent=1))
 
     for r in results:
-        print(f"\n#### {r['precision']} · ORT {r['ort']} · {r['threads']} threads")
+        cfg = ", ".join(f"{k}={v}" for k, v in r["config"].items()) or "defaults"
+        print(f"\n#### {r['precision']} · ORT {r['ort']} · {r['threads']} threads · {cfg}")
         print(
             f"decode {r['decode_ms_per_token']:.2f} ms/token · prefill {r['prefill_ms']:.1f} ms\n"
         )
