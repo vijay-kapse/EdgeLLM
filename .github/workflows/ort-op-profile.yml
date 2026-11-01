@@ -1,0 +1,50 @@
+name: ORT op profile
+
+# Where does int8 decode time go? Per-operator ONNX Runtime profile of
+# quantcost's decode loop, split into prefill and single-token decode.
+
+on:
+  workflow_dispatch:
+    inputs:
+      ort_version:
+        description: "onnxruntime version"
+        default: "1.31.1"
+      model:
+        description: "Hub model id"
+        default: "HuggingFaceTB/SmolLM2-135M-Instruct"
+      precisions:
+        description: "Comma-separated precisions"
+        default: "fp32,int8,q4"
+
+jobs:
+  profile:
+    name: ${{ matrix.runner }}
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        runner: [ubuntu-24.04-arm, macos-14, ubuntu-24.04]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install
+        run: |
+          python -m pip install -q --upgrade pip
+          pip install -q -e . "onnxruntime==${{ inputs.ort_version }}"
+
+      - name: Profile
+        run: |
+          python scripts/profile_ops.py --model "${{ inputs.model }}" \
+            --precisions "${{ inputs.precisions }}" --out profiles \
+            | tee -a "$GITHUB_STEP_SUMMARY"
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: profile-${{ matrix.runner }}
+          path: profiles/
